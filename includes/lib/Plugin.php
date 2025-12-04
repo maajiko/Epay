@@ -58,6 +58,12 @@ class Plugin {
 				if(!empty($userrow['ordername']))$conf['ordername']=$userrow['ordername'];
 				$ordername = !empty($conf['ordername'])?ordername_replace($conf['ordername'],$order['name'],$order['uid'],$trade_no,$order['out_trade_no']):$order['name'];
 				$order['plugin'] = $channel['plugin'];
+				if(!empty($order['cert_info'])){
+					$cert_info = json_decode($order['cert_info'], true);
+					$order['cert_no'] = $cert_info['cert_no'];
+					$order['cert_name'] = $cert_info['cert_name'];
+					$order['min_age'] = $cert_info['min_age'];
+				}
 			}
 			$groupconfig = getGroupConfig($userrow['gid']);
 			$conf = array_merge($conf, $groupconfig);

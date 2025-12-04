@@ -8,6 +8,107 @@ if(!checkRefererHost())exit('{"code":403}');
 @header('Content-Type: application/json; charset=UTF-8');
 
 switch($act){
+case 'info':
+	if($userrow['open_wxa'] == 0) exit('{"code":-1,"msg":"商户未开启微信小程序功能"}');
+	$name = !empty($userrow['certname']) ? $userrow['certname'] : $userrow['username'];
+	if($userrow['status']==0){
+		$status = '已封禁';
+	}elseif($userrow['pay']==0 && $userrow['settle']==0){
+		$status = '关闭支付、结算';
+	}elseif($userrow['pay']==0){
+		$status = '关闭支付';
+	}elseif($userrow['settle']==0){
+		$status = '关闭结算';
+	}elseif($conf['cert_force']==1 && $userrow['cert']==0){
+		$status = '未实名认证';
+	}elseif($userrow['pay']==2){
+		$status = '待审核';
+	}else{
+		$status = '正常';
+	}
+	$complain_total = $DB->getColumn("SELECT count(*) from pre_complain WHERE uid=$uid AND status=0");
+	$groupconfig = getGroupConfig($userrow['gid']);
+	$conf = array_merge($conf, $groupconfig);
+	$mygroup = $DB->getRow("SELECT * FROM pre_group WHERE gid='{$userrow['gid']}'");
+	$mygroupname = $mygroup['name'] ? $mygroup['name'] : '默认用户组';
+	$gexpire = $userrow['endtime'] ? date("Y-m-d", strtotime($userrow['endtime'])) : '永久';
+	$merchant = authcode($uid, 'ENCODE', SYS_KEY);
+	$code_url = $conf['onecode']==1 || $userrow['open_code'] == 1 ? $siteurl.'paypage/?merchant='.urlencode($merchant) : null;
+	$result = [
+		'code' => 0,
+		'user' => [
+			'uid' => $uid,
+			'name' => $name,
+			'money' => $userrow['money'],
+			'deposit' => $userrow['deposit'],
+			'status' => $status,
+			'gid' => $userrow['gid'],
+			'gname' => $mygroupname,
+			'gexpire' => $gexpire,
+			'key' => $userrow['key'],
+			'settle_type' => $userrow['settle_id'],
+			'settle_account' => $userrow['account'],
+			'settle_name' => $userrow['username'],
+			'codename' => $userrow['codename'],
+			'alipay_uid' => $userrow['alipay_uid'],
+			'qq_uid' => $userrow['qq_uid'],
+			'wx_uid' => $userrow['wx_uid'],
+			'email' => $userrow['email'],
+			'phone' => $userrow['phone'],
+			'qq' => $userrow['qq'],
+			'url' => $userrow['url'],
+			'cert' => $userrow['cert'],
+			'certtype' => $userrow['certtype'],
+			'certmethod' => $userrow['certmethod'],
+			'certno' => !empty($userrow['certno']) ? substr($userrow['certno'],0,3).showstar(11).substr($userrow['certno'],-4) : null,
+			'certname' => !empty($userrow['certname']) ? showstar((strlen($userrow['certname'])-3)/3).substr($userrow['certname'],-3) : null,
+			'certtime' => $userrow['certtime'],
+			'certcorpno' => $userrow['certcorpno'],
+			'certcorpname' => $userrow['certcorpname'],
+			'addtime' => $userrow['addtime'],
+			'lasttime' => $userrow['lasttime'],
+			'endtime' => $userrow['endtime'],
+			'keylogin' => $userrow['keylogin'],
+			'mode' => $userrow['mode'],
+			'api_refund' => $userrow['refund'],
+			'api_transfer' => $userrow['transfer'],
+			'keytype' => $userrow['keytype'],
+			'publickey' => $userrow['publickey'],
+			'ordername' => $userrow['ordername'],
+			'msgconfig' => unserialize($userrow['msgconfig']),
+			'remain_money' => $userrow['remain_money'],
+			'voice_devid' => $userrow['voice_devid'],
+			'voice_order' => $userrow['voice_order'],
+			'pay_maxmoney' => $userrow['pay_maxmoney'],
+			'pay_minmoney' => $userrow['pay_minmoney'],
+			'complain_total' => $complain_total,
+			'code_url' => $code_url,
+			'faceimg' => ($userrow['qq'])?'https://q2.qlogo.cn/headimg_dl?bs=qq&dst_uin='.$userrow['qq'].'&src_uin='.$userrow['qq'].'&fid='.$userrow['qq'].'&spec=100&url_enc=0&referer=bu_interface&term_type=PC':$siteurl.'assets/img/user.png',
+		],
+		'sys' => [
+			'sitename' => $conf['sitename'],
+			'cert' => $conf['cert_open']>0,
+			'deposit' => $conf['user_deposit']>0,
+			'withdraw' => $conf['settle_open']==2||$conf['settle_open']==3,
+			'recharge' => $conf['recharge']==1,
+			'groupbuy' => $conf['group_buy']==1,
+			'domain' => $conf['pay_domain_open']==1,
+			'complain' => class_exists('\\lib\\Complain\\CommUtil') && $conf['complain_open']==1,
+			'mchrisk' => class_exists('\\lib\\WxMchRisk') && $conf['mchrisk_open']==1,
+			'applyments' => class_exists('\\lib\\Applyments\\CommUtil'),
+			'transfer' => $conf['user_transfer']==1,
+			'alipaysatf' => class_exists('\\lib\\AlipaySATF\\AlipaySATF') && $conf['alipay_satf']==1,
+			'onecode' => $conf['onecode']==1 || $userrow['open_code'] == 1,
+			'invite' => $conf['invite_open']==1,
+			'cert_type' => intval($conf['cert_open']),
+			'cert_corp' => $conf['cert_corpopen'] == 1,
+			'cert_money' => $conf['cert_money'],
+			'public_key' => $conf['public_key'],
+			'apiurl' => !empty($conf['apiurl'])?$conf['apiurl']:$siteurl,
+		],
+	];
+	exit(json_encode($result));
+break;
 case 'getcount':
 	$lastday=date("Y-m-d",strtotime("-1 day"));
 	$today=date("Y-m-d");
@@ -247,6 +348,19 @@ case 'edit_voice':
 	$voice_devid=trim($_POST['voice_devid']);
 	$voice_order=intval($_POST['voice_order']);
 	$sqs = $DB->update('user', ['voice_devid'=>$voice_devid, 'voice_order'=>$voice_order], ['uid'=>$uid]);
+	if($sqs!==false){
+		exit('{"code":1,"msg":"succ"}');
+	}else{
+		exit('{"code":-1,"msg":"保存失败！'.$DB->error().'"}');
+	}
+break;
+case 'edit_print':
+	$print_order=intval($_POST['print_order']);
+	$print_devid=trim($_POST['print_devid']);
+	$print_count=trim($_POST['print_count']);
+	$print_voice=intval($_POST['print_voice']);
+	$print_config=serialize(['devid'=>$print_devid, 'count'=>$print_count, 'voice'=>$print_voice]);
+	$sqs = $DB->update('user', ['print_order'=>$print_order, 'print_config'=>$print_config], ['uid'=>$uid]);
 	if($sqs!==false){
 		exit('{"code":1,"msg":"succ"}');
 	}else{
@@ -613,7 +727,7 @@ case 'subOrders':
 break;
 case 'notify':
 	$trade_no=$_POST['trade_no'];
-	$row=$DB->getRow("select * from pre_order where trade_no=:trade_no AND uid=:uid limit 1", [':trade_no'=>$trade_no, ':uid'=>$uid]);
+	$row=$DB->find('order', '*', ['trade_no'=>$trade_no, 'uid'=>$uid]);
 	if(!$row)
 		exit('{"code":-1,"msg":"当前订单不存在！"}');
 	if($row['status']==0)exit('{"code":-1,"msg":"订单尚未支付，无法重新通知！"}');
@@ -621,6 +735,23 @@ case 'notify':
 	if($row['notify']>0)
 		$DB->exec("update pre_order set notify=0 where trade_no=:trade_no", [':trade_no'=>$trade_no]);
 	exit('{"code":0,"url":"'.($_POST['isreturn']==1?$url['return']:$url['notify']).'"}');
+break;
+case 'printOrder':
+	$trade_no=$_POST['trade_no'];
+	$row=$DB->find('order', '*', ['trade_no'=>$trade_no, 'uid'=>$uid]);
+	if(!$row)
+		exit('{"code":-1,"msg":"当前订单不存在！"}');
+	if($row['status']==0)exit('{"code":-1,"msg":"订单尚未支付，无法打印！"}');
+	if(!$conf['orderprint'] || $userrow['print_order']==0)exit('{"code":-1,"msg":"未开启打印功能"}');
+	$print_config = unserialize($userrow['print_config']);
+	$typeshowname = $DB->findColumn('type', 'showname', ['id'=>$row['type']]);
+	$param = ['trade_no'=>$row['trade_no'], 'name'=>$row['name'], 'money'=>$row['money'], 'type'=>$typeshowname, 'time'=>$row['endtime'], 'tid'=>$row['tid'], 'codename'=>$userrow['codename'], 'remark'=>$row['param']];
+	try{
+		(new \lib\Printer($conf['print_appid'], $conf['print_appsecret']))->print($print_config['devid'], $param);
+		exit('{"code":0,"msg":"打印成功"}');
+	}catch(Exception $e){
+		exit('{"code":-1,"msg":"打印失败：'.$e->getMessage().'"}');
+	}
 break;
 case 'settle_result':
 	$id=intval($_GET['id']);
@@ -957,7 +1088,7 @@ case 'transferList':
 		}elseif($_POST['type']==4){
 			$sql.=" AND `account`='{$kw}'";
 		}elseif($_POST['type']==5){
-			$sql.=" AND `username`='{$kw}'";
+			$sql.=" AND `username` LIKE '%{$kw}%'";
 		}elseif($_POST['type']==6){
 			$sql.=" AND `money`='{$kw}'";
 		}

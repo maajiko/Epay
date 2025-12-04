@@ -87,7 +87,7 @@ elseif($_GET['do']=='order'){
 		exit;
 	}
 
-	$thtime=date("Y-m-d H:i:s",time()-3600*24);
+	$thtime=date("Y-m-d H:i:s",time()-3600*48);
 
 	$CACHE->clean();
 	$DB->exec("delete from pre_order where status=0 and addtime<'{$thtime}'");

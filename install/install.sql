@@ -5,7 +5,7 @@ create table `pre_config` (
 PRIMARY KEY  (`k`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-INSERT INTO `pre_config` VALUES ('version', '2052');
+INSERT INTO `pre_config` VALUES ('version', '2053');
 INSERT INTO `pre_config` VALUES ('admin_user', 'admin');
 INSERT INTO `pre_config` VALUES ('admin_pwd', '123456');
 INSERT INTO `pre_config` VALUES ('admin_paypwd', '123456');
@@ -108,7 +108,7 @@ CREATE TABLE `pre_plugin` (
   `showname` varchar(60) DEFAULT NULL,
   `author` varchar(60) DEFAULT NULL,
   `link` varchar(255) DEFAULT NULL,
-  `types` varchar(50) DEFAULT NULL,
+  `types` varchar(255) DEFAULT NULL,
   `transtypes` varchar(50) DEFAULT NULL,
  PRIMARY KEY (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -132,6 +132,8 @@ CREATE TABLE `pre_channel` (
   `costrate` decimal(5,2) DEFAULT NULL,
   `config` text DEFAULT NULL,
   `daymaxorder` int(10) DEFAULT 0,
+  `timestart` int(11) DEFAULT NULL,
+  `timestop` int(11) DEFAULT NULL,
  PRIMARY KEY (`id`),
  KEY `type` (`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -204,6 +206,7 @@ CREATE TABLE `pre_order` (
   `bill_trade_no` varchar(150) DEFAULT NULL,
   `bill_mch_trade_no` varchar(150) DEFAULT NULL,
   `mobile` varchar(100) DEFAULT NULL,
+  `cert_info` varchar(300) DEFAULT NULL,
  PRIMARY KEY (`trade_no`),
  KEY `uid` (`uid`),
  KEY `out_trade_no` (`out_trade_no`,`uid`),
@@ -247,6 +250,7 @@ CREATE TABLE `pre_user` (
   `alipay_uid` varchar(32) DEFAULT NULL,
   `qq_uid` varchar(32) DEFAULT NULL,
   `wx_uid` varchar(32) DEFAULT NULL,
+  `wxa_uid` varchar(32) DEFAULT NULL,
   `money` decimal(10,2) NOT NULL,
   `email` varchar(32) DEFAULT NULL,
   `phone` varchar(20) DEFAULT NULL,
@@ -281,8 +285,10 @@ CREATE TABLE `pre_user` (
   `remain_money` varchar(20) DEFAULT NULL,
   `open_code` tinyint(1) NOT NULL DEFAULT '0',
   `deposit` decimal(10,2) DEFAULT NULL,
-  `voice_devid` varchar(30) DEFAULT NULL,
   `voice_order` tinyint(1) NOT NULL DEFAULT '0',
+  `voice_devid` varchar(30) DEFAULT NULL,
+  `print_order` tinyint(1) NOT NULL DEFAULT '0',
+  `print_config` varchar(300) DEFAULT NULL,
   `pay_maxmoney` varchar(10) DEFAULT NULL,
   `pay_minmoney` varchar(10) DEFAULT NULL,
  PRIMARY KEY (`uid`),
@@ -427,6 +433,7 @@ CREATE TABLE `pre_psorder` (
   `result` text DEFAULT NULL,
   `addtime` datetime DEFAULT NULL,
   `delay` tinyint(1) NOT NULL DEFAULT '0',
+  `retry` tinyint(1) NOT NULL DEFAULT '0',
   `rdata` text DEFAULT NULL,
  PRIMARY KEY (`id`),
  KEY `trade_no` (`trade_no`),

@@ -18,6 +18,7 @@ if($arr['cmd'] == 'heartbeat'){
     exit(json_encode($result, JSON_UNESCAPED_UNICODE));
 }elseif($arr['cmd'] == 'qrcode'){
     $sn = $arr['sn'];
+    if(!$sn) voicemsg('设备号不能为空');
     $userrow=$DB->getRow("SELECT `uid`,`gid`,`key`,`money`,`mode`,`pay`,`cert`,`status`,`channelinfo`,`qq`,`ordername`,`keytype`,`publickey` FROM `pre_user` WHERE `voice_devid`=:voice_devid LIMIT 1", [':voice_devid'=>$sn]);
     if(!$userrow) voicemsg('设备关联的商户不存在');
     if($userrow['status']==0 || $userrow['pay']==0) voicemsg('当前商户已被封禁');
@@ -27,12 +28,13 @@ if($arr['cmd'] == 'heartbeat'){
     if(!$auth_code) voicemsg('二维码解析失败');
 
     $money = $arr['money'];
-    if($money <= 0) voicemsg('金额错误');
+    if($money <= 0 || !is_numeric($money) || !preg_match('/^[0-9.]+$/', $money)) voicemsg('金额错误');
     if($conf['pay_maxmoney']>0 && $money>$conf['pay_maxmoney']) voicemsg('最大支付金额是'.$conf['pay_maxmoney'].'元');
 	if($conf['pay_minmoney']>0 && $money<$conf['pay_minmoney']) voicemsg('最小支付金额是'.$conf['pay_minmoney'].'元');
 
     $trade_no = date("YmdHis").rand(11111,99999);
     $out_trade_no = $arr['msgid'];
+    if(!preg_match('/^[a-zA-Z0-9.\_\-|]+$/',$out_trade_no))voicemsg('订单号格式不正确');
     $method = 'scan';
     $name = '付款码收款';
     $type = getScanPayType($auth_code);

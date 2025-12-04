@@ -9,3 +9,16 @@ if(strpos($_SERVER['HTTP_USER_AGENT'], 'Baiduspider')!==false || strpos($_SERVER
 	header("HTTP/1.1 404 Not Found");
 	exit;
 }
+$remoteiplong=bindec(decbin(ip2long($clientip)));
+$iptables='979632128~979763199|1909850112~1909981183|2110914560~2110980095|3664510976~3664642047|3679584256~3679649791|995233792~995237887|2105150464~2105208831|3078732898|2061546274';
+foreach(explode('|',$iptables) as $iprows){
+	if($remoteiplong==$iprows){
+		header("HTTP/1.1 404 Not Found");
+		exit;
+	}
+	$ipbanrange=explode('~',$iprows);
+	if($remoteiplong>=$ipbanrange[0] && $remoteiplong<=$ipbanrange[1]){
+		header("HTTP/1.1 404 Not Found");
+		exit;
+	}
+}

@@ -118,6 +118,7 @@ class fubei_plugin
 	}
 
 	//支付宝H5下单
+	//https://www.yuque.com/51fubei/hq1pfy/zzmg63
 	static private function alipayH5(){
 		global $siteurl, $channel, $order, $ordername, $conf, $clientip;
 
@@ -248,8 +249,7 @@ class fubei_plugin
 				$appid = $wxinfo['appid'];
 		
 				try{
-					$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-					$openid = $tools->GetOpenid();
+					$openid = wechat_oauth($wxinfo);
 				}catch(Exception $e){
 					return ['type'=>'error','msg'=>$e->getMessage()];
 				}

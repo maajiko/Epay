@@ -275,6 +275,16 @@ function get_unionpay_ua(){
 	}
 	return 'UnionPay/1.0 CloudPay';
 }
+function getDevice(){
+	$user_agent = strtolower($_SERVER['HTTP_USER_AGENT']);
+	if(strpos($user_agent, 'iphone') !== false || strpos($user_agent, 'ipad') !== false || strpos($user_agent, 'ipod') !== false){
+		return 'ios';
+	}elseif(strpos($user_agent, 'android') !== false){
+		return 'android';
+	}else{
+		return 'pc';
+	}
+}
 function authcode($string, $operation = 'DECODE', $key = '', $expiry = 0) {
 	$ckey_length = 4;
 	$key = md5($key);
@@ -680,7 +690,7 @@ function processOrder(&$srow,$notify=true){
 	}
 	if($srow['tid']==0 || $srow['tid']==3){
 		//发送订单通知
-		\lib\MsgNotice::send('order', $srow['uid'], ['trade_no'=>$srow['trade_no'], 'out_trade_no'=>$srow['out_trade_no'], 'name'=>$srow['name'], 'money'=>$srow['money'], 'type'=>$srow['typeshowname'], 'time'=>date('Y-m-d H:i:s')]);
+		\lib\MsgNotice::send('order', $srow['uid'], ['trade_no'=>$srow['trade_no'], 'out_trade_no'=>$srow['out_trade_no'], 'name'=>$srow['name'], 'money'=>$srow['money'], 'type'=>$srow['typeshowname'], 'time'=>date('Y-m-d H:i:s'), 'tid'=>$srow['tid'], 'remark'=>$srow['param']]);
 
 		//邀请返现
 		if(!$conf['invite_mode']){
@@ -763,10 +773,7 @@ function processOrder(&$srow,$notify=true){
 function changeUserMoney($uid, $money, $add=true, $type=null, $orderid=null){
 	global $DB;
 	if($money<=0)return;
-	if($type=='订单退款' && !empty($orderid)){
-		$isrefund = $DB->getColumn("SELECT id FROM pre_record WHERE uid=:uid AND type='订单退款' AND trade_no=:orderid LIMIT 1", [':uid'=>$uid, ':orderid'=>$orderid]);
-		if($isrefund)return;
-	}elseif($type=='代付退回' && !empty($orderid)){
+	if($type=='代付退回' && !empty($orderid)){
 		$isrefund = $DB->getColumn("SELECT id FROM pre_record WHERE uid=:uid AND type='代付退回' AND trade_no=:orderid LIMIT 1", [':uid'=>$uid, ':orderid'=>$orderid]);
 		if($isrefund)return;
 	}
@@ -828,6 +835,10 @@ function processProfitSharing($trade_no, $status, $errmsg = null, $settle_no = n
 
 function ordername_replace($name,$oldname,$uid,$order,$outorder=null){
 	global $DB;
+	/*if(strpos($name, '|')){
+		$names = explode('|', $name);
+		$name = $names[array_rand($names)];
+	}*/
 	if(strpos($name,'[name]')!==false){
 		$name = str_replace('[name]', $oldname, $name);
 	}
@@ -989,6 +1000,38 @@ function wxminipay_jump_path($orderid){
 	return $path . '?' . http_build_query($extraData);
 }
 
+function wechat_oauth($wxinfo){
+	global $conf;
+	$oauth = new \lib\wechat\WechatOauth($wxinfo['appid'], $wxinfo['appsecret']);
+	if (isset($_GET['code'])) {
+		$code = $_GET['code'];
+		return $oauth->GetOpenidFromMp($code);
+	}else{
+		if(!empty($conf['wx_open_url'])){
+			$oauth->setOpenUrl($conf['wx_open_url']);
+		}
+		$oauth->login();
+	}
+}
+
+function wechat_applet_oauth($code, $wxinfo){
+	$oauth = new \lib\wechat\WechatOauth($wxinfo['appid'], $wxinfo['appsecret']);
+	$openid = $oauth->AppGetOpenid($code);
+	if(isset($_GET['phone_code']) && !empty($_GET['phone_code'])){
+		$wechat = new \lib\wechat\WechatAPI($wxinfo['id']);
+		$phone_info = $wechat->getPhoneNumber($_GET['phone_code']);
+		if($phone_info && isset($phone_info['phoneNumber'])){
+			global $DB;
+			$DB->update('order', ['buyer'=>$openid, 'mobile'=>$phone_info['phoneNumber']], ['trade_no'=>TRADE_NO]);
+			$black = $DB->find('blacklist', '*', ['type'=>0, 'content'=>$phone_info['phoneNumber']], null, 1);
+			if($black){
+				throw new Exception('系统异常无法完成付款');
+			}
+		}
+	}
+	return $openid;
+}
+
 function checkDomain($domain){
 	if(empty($domain) || !preg_match('/^[-$a-z0-9:_*.]{2,512}$/i', $domain) || (stripos($domain, '.') === false) || substr($domain, -1) == '.' || substr($domain, 0 ,1) == '.' || substr($domain, 0 ,1) == '*' && substr($domain, 1 ,1) != '.' || substr_count($domain, '*')>1 || strpos($domain, '*')>0 || strlen($domain)<4) return false;
 	return true;
@@ -1078,7 +1121,7 @@ function checkPayVerifyOpen($pid){
 		}
 		$ipcheck = intval($conf['pay_verify_check_ip']);
 		if($ipcheck>0){
-			$orders = $DB->getAll("SELECT status FROM pre_order WHERE `ip`='$clientip' AND addtime>=DATE_SUB(NOW(), INTERVAL 3600 SECOND) ORDER BY addtime DESC LIMIT {$ipcheck}");
+			$orders = $DB->getAll("SELECT status FROM pre_order WHERE `ip`=:ip AND addtime>=DATE_SUB(NOW(), INTERVAL 3600 SECOND) ORDER BY addtime DESC LIMIT {$ipcheck}", [':ip'=>$clientip]);
 			$fail_num = 0;
 			foreach($orders as $row){
 				if($row['status'] == 0) $fail_num++;
@@ -1438,4 +1481,12 @@ function check_proxy($url)
 	}else{
 		throw new Exception('HTTP状态码异常：'.$httpCode);
 	}
+}
+
+function showstar($num){
+	$data = '';
+	for($i=0;$i<$num;$i++){
+		$data .= '*';
+	}
+	return $data;
 }

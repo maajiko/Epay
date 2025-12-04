@@ -213,4 +213,22 @@ class AlipayComplainService extends AlipayService
         return $result['complaint_process_success'];
     }
 
+    /**
+     * RiskGO商家留言回复
+     * @param string $complain_id 投诉单号
+     * @param string $reply_content 回复内容
+     * @return bool
+     * @throws Exception
+     */
+    public function riskReplySend(string $complain_id, string $reply_content): bool
+    {
+        $apiName = 'alipay.security.risk.complaint.reply.send';
+        $bizContent = [
+            'complaint_id' => $complain_id,
+            'reply_content' => $reply_content,
+        ];
+        $this->aopExecute($apiName, $bizContent);
+        return true;
+    }
+
 }

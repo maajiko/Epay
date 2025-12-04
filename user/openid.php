@@ -80,8 +80,7 @@ if($is_alipay){
 	}
 }else{
 	try{
-		$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-		$openId = $tools->GetOpenid();
+		$openId = wechat_oauth($wxinfo);
 	}catch(Exception $e){
 		sysmsg($e->getMessage());
 	}

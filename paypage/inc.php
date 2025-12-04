@@ -41,8 +41,7 @@ function weixinOpenId($channel){
 	if(!$wxinfo)showerror('支付通道绑定的微信公众号不存在');
 
 	try{
-		$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-		$openId = $tools->GetOpenid();
+		$openId = wechat_oauth($wxinfo);
 	}catch(Exception $e){
 		showerror($e->getMessage());
 	}

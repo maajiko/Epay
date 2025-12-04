@@ -3,16 +3,13 @@ error_reporting(0);
 
 session_start();
 header('Content-type: application/json');
-require '../includes/qrcodedecoder/bootstrap.php';
 class qq_qrlogin{
 	public function getqrpic(){
 		$url='https://ssl.ptlogin2.qq.com/ptqrshow?appid=716027609&e=2&l=M&s=4&d=72&v=4&t=0.5409099'.time().'&daid=383&pt_3rd_aid=101487368';
 		$arr=$this->get_curl($url,0,'https://xui.ptlogin2.qq.com/cgi-bin/xlogin?appid=716027609&daid=383&style=33&theme=2&login_text=%E6%8E%88%E6%9D%83%E5%B9%B6%E7%99%BB%E5%BD%95&hide_title_bar=1&hide_border=1&target=self&s_url=https%3A%2F%2Fgraph.qq.com%2Foauth2.0%2Flogin_jump&pt_3rd_aid=101487368&pt_feedback_link=https%3A%2F%2Fsupport.qq.com%2Fproducts%2F77942%3FcustomInfo%3Dwww.qq.com.appid101487368',0,1,0,0,1);
 		preg_match('/qrsig=(.*?);/',$arr['header'],$match);
 		if($qrsig=$match[1]){
-			$qrcode = new Zxing\QrReader($arr['body'], Zxing\QrReader::SOURCE_TYPE_BLOB);
-			$code_url = $qrcode->text();
-			return array('saveOK'=>0,'qrsig'=>$qrsig,'data'=>base64_encode($arr['body']),'url'=>$code_url);
+			return array('saveOK'=>0,'qrsig'=>$qrsig,'data'=>base64_encode($arr['body']));
 		}else{
 			return array('saveOK'=>1,'msg'=>'二维码获取失败');
 		}

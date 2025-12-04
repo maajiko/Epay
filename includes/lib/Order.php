@@ -15,7 +15,7 @@ class Order
             return ['code'=>-1, 'msg'=>'当前支付通道为商户直清，不支持冻结'];
         if($row['getmoney']>0){
             changeUserMoney($row['uid'], $row['getmoney'], false, '订单冻结', $trade_no);
-            $DB->exec("update pre_order set status='3' where trade_no='$trade_no'");
+            $DB->update('order', ['status'=>3], ['trade_no'=>$trade_no]);
         }
         return ['code'=>0, 'msg'=>'已成功从UID:'.$row['uid'].'冻结'.$row['getmoney'].'元余额'];
     }
@@ -32,7 +32,7 @@ class Order
             return ['code'=>-1, 'msg'=>'当前支付通道为商户直清，不支持冻结'];
         if($row['getmoney']>0){
             changeUserMoney($row['uid'], $row['getmoney'], true, '订单解冻', $trade_no);
-            $DB->exec("update pre_order set status='1' where trade_no='$trade_no'");
+            $DB->update('order', ['status'=>1], ['trade_no'=>$trade_no]);
         }
         return ['code'=>0, 'msg'=>'已成功为UID:'.$row['uid'].'恢复'.$row['getmoney'].'元余额'];
     }
@@ -76,7 +76,7 @@ class Order
         if(!$order['api_trade_no']) return ['code'=>-1, 'msg'=>'接口订单号不存在'];
         if($order['status'] == 2 && empty($order['refundmoney'])) return ['code'=>-1, 'msg'=>'该订单已退款！'];
         if($order['status'] == 2 && $order['refundmoney'] > 0 && $order['refundmoney'] >= $order['realmoney']) return ['code'=>-1, 'msg'=>'该订单已全额退款！'];
-        if($order['refundmoney'] > 0 && $money > round($order['realmoney'] - $order['refundmoney'], 2)) return ['code'=>-1, 'msg'=>'退款金额不能超过该订单剩余可退款金额！'];
+        if($order['status'] == 2 && $order['refundmoney'] > 0 && $money > round($order['realmoney'] - $order['refundmoney'], 2) ||$money > $order['realmoney']) return ['code'=>-1, 'msg'=>'退款金额不能超过该订单剩余可退款金额！'];
         $refunded = $order['refundmoney'];
 
         if(!$out_refund_no) $out_refund_no = $refund_no;

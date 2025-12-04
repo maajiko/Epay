@@ -38,14 +38,15 @@ class M2Client
 
     /**
      * @param $api_code string 接口编码
-     * @param $data string 请求参数
+     * @param $params array 请求参数
      * @param $random_key string 随机密钥
      * @param $all_encrypt int 加密范围 0 不加密 1 部分加密 2 全报文加密
      * @return null
      */
-    public function execute($api_code, $data, $random_key = null, $all_encrypt = 0){
+    public function execute($api_code, $params, $random_key = null, $all_encrypt = 0){
         $timestamp = time().'';
         $nonce = rand(000000,999999).'';
+        $data = json_encode($params, JSON_UNESCAPED_SLASHES);
         $sign = $this->generateSign($api_code, $timestamp, $nonce, $data);
 
         $query = [

@@ -61,7 +61,7 @@ if($admin_cdnpublic==1){
               <li><a href="./ps_order.php">分账记录</a><li>
             </ul>
           </li>
-          <li class="<?php echo checkIfActive('settle,settle_batch,slist,transfer,transfer_add,transfer_export,transfer_red,transfer_batch')?>">
+          <li class="<?php echo checkIfActive('settle,settle_batch,slist,transfer,transfer_add,transfer_export,transfer_red,transfer_batch,transfer_stat')?>">
             <a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-cloud"></i> 付款管理<b class="caret"></b></a>
             <ul class="dropdown-menu">
               <li><a href="./slist.php">结算管理</a></li>
@@ -70,6 +70,7 @@ if($admin_cdnpublic==1){
               <li><a href="./transfer.php">付款记录</a><li>
               <li><a href="./transfer_add.php">新增付款</a><li>
               <li><a href="./transfer_red.php">创建红包</a><li>
+              <li><a href="./transfer_stat.php">付款统计</a><li>
               <li><a href="./transfer_export.php">导出付款记录</a><li>
               <?php if(class_exists('\\lib\\AlipaySATF\\AlipaySATF')){?><li><a href="./satf_transfer.php">安全发转账记录</a></li><?php }?>
             </ul>

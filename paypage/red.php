@@ -42,8 +42,7 @@ if($trans['type'] == 'alipay'){
     $wxinfo = \lib\Channel::getWeixin($channel['appwxmp']);
     if(!$wxinfo) showerror('支付通道绑定的微信公众号不存在');
     try{
-        $tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-        $openid = $tools->GetOpenid();
+        $openid = wechat_oauth($wxinfo);
     }catch(Exception $e){
         showerror($e->getMessage());
     }

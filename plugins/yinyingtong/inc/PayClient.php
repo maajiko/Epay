@@ -58,6 +58,15 @@ class PayClient
             return json_decode($result['data'], true);
         }elseif(isset($result['sub_msg'])){
             throw new Exception('['.$result['sub_code'].']'.$result['sub_msg']);
+        }elseif(isset($result['data']) && strpos($result['data'], 'op_ret_code')!==false){
+            $result = json_decode($result['data'], true);
+            if(isset($result['op_ret_code']) && ($result['op_ret_code']=='000' || $result['op_ret_code']=='701')){
+                return $result;
+            }elseif(isset($result['op_ret_subcode'])){
+                throw new Exception('['.$result['op_ret_subcode'].']'.$result['op_err_submsg']);
+            }else{
+                throw new Exception('['.$result['op_ret_code'].']'.$result['op_ret_msg']);
+            }
         }else{
             throw new Exception($result['msg']?$result['msg']:'返回数据解析失败');
         }
@@ -99,4 +108,30 @@ class PayClient
 
         return strtoupper(md5($signstr));
 	}
+
+    public function notify($data, $key){
+        $data = trim(substr($data, 107));
+        $len = trim(substr($data, 0, 4));
+        $cipher = trim(substr($data, 4));
+        $dec_data = self::desDecrypt($cipher, $key);
+        if(!$dec_data) return false;
+        $json = explode('', $dec_data)[1];
+        return json_decode(trim($json), true);
+    }
+
+    //DES 加密
+    public static function desEncrypt($str, $key)
+    {
+        $key = substr($key, 0, 8);
+        $encrypted = openssl_encrypt($str, 'des-ede3-ecb', $key, OPENSSL_RAW_DATA);
+        $encryptedHex = strtoupper(bin2hex($encrypted));
+        return $encryptedHex;
+    }
+
+    //DES 解密
+    public static function desDecrypt($str, $key)
+    {
+        $decrypted = openssl_decrypt(hex2bin($str), 'des-ede3-ecb' ,$key, OPENSSL_RAW_DATA);
+        return rtrim($decrypted, "\0");
+    }
 }

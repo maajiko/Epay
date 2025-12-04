@@ -465,6 +465,27 @@ class Payment {
         if($wechatpay_config['ecommerce']){
             if(!$order['profits']){
                 $client = new \WeChatPay\V3\ProfitsharingService($wechatpay_config);
+                if($order['combine'] == 1){
+                    $sub_orders = self::getSubOrders($order['trade_no']);
+                    if(empty($sub_orders)) throw new Exception('子订单数据不存在');
+                    $failnum = 0;
+                    $errmsg = '';
+                    foreach($sub_orders as $sub_order){
+                        if($sub_order['settle'] == 0){
+                            $settle = 0;
+                            try{
+                                $client->unfreeze($sub_order['sub_trade_no'], $sub_order['api_trade_no']);
+                                $settle = 1;
+                            }catch(Exception $e){
+                                $failnum++;
+                                $errmsg .= $e->getMessage().',';
+                            }
+                            if($settle == 1) self::updateSubOrderSettle($sub_order['sub_trade_no'], 1);
+                        }
+                    }
+                    if($failnum > 0) throw new Exception('部分子单结算失败，失败数量：'.$failnum.'，失败原因：'.$errmsg);
+                    return true;
+                }
                 return $client->unfreeze($order['trade_no'], $order['api_trade_no']);
             }else{
                 throw new Exception('当前订单需要分账，请进入分账订单页面确认分账');

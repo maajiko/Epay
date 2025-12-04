@@ -64,8 +64,9 @@ class PartnerPaymentService extends BaseService
      */
     private function getJsApiParameters(string $prepay_id): array
     {
+        $appId = !empty($this->subAppId) ? $this->subAppId : $this->appId;
         $params = [
-            'appId' => $this->appId,
+            'appId' => $appId,
             'timeStamp' => time().'',
             'nonceStr' => $this->getNonceStr(),
             'package' => 'prepay_id=' . $prepay_id,

@@ -17,7 +17,7 @@ tbody tr>td:nth-child(5){max-width:300px;word-break: break-all;}
 <form onsubmit="return searchSubmit()" method="GET" class="form-inline" id="searchToolbar">
   <div class="form-group">
     <label>搜索</label>
-	<select name="column" class="form-control"><option value="biz_no">交易号</option><option value="out_biz_no">商户交易号</option><option value="pay_order_no">接口交易号</option><option value="account">付款账号</option><option value="username">姓名</option><option value="money">付款金额</option></select>
+	<select name="column" class="form-control"><option value="biz_no">交易号</option><option value="out_biz_no">商户交易号</option><option value="pay_order_no">接口交易号</option><option value="account">付款账号</option><option value="username">姓名</option><option value="money">付款金额</option><option value="desc">备注</option></select>
   </div>
   <div class="form-group">
     <input type="text" class="form-control" name="value" placeholder="搜索内容" value="">

@@ -6,7 +6,7 @@ include("../includes/common.php");
 
 if(isset($_GET['act']) && $_GET['act']=='qrlogin' && $conf['login_qq']==2){
 	if(isset($_SESSION['findpwd_qq']) && $qq=$_SESSION['findpwd_qq']){
-		$userrow=$DB->getRow("SELECT * FROM pre_user WHERE qq_uid='$qq' LIMIT 1");
+		$userrow=$DB->getRow("SELECT * FROM pre_user WHERE qq_uid=:qq LIMIT 1", [':qq'=>$qq]);
 		unset($_SESSION['findpwd_qq']);
 		if($userrow){
 			$uid=$userrow['uid'];
@@ -22,7 +22,7 @@ if(isset($_GET['act']) && $_GET['act']=='qrlogin' && $conf['login_qq']==2){
 			$DB->exec("update `pre_user` set `lasttime`=NOW() where `uid`='$uid'");
 			$result=array("code"=>0,"msg"=>"登录成功！正在跳转到用户中心","url"=>"./");
 		}elseif($islogin2==1){
-			$sds=$DB->exec("update `pre_user` set `qq_uid`='$qq' where `uid`='$uid'");
+			$sds=$DB->exec("update `pre_user` set `qq_uid`=:qq where `uid`=:uid", [':qq'=>$qq, ':uid'=>$uid]);
 			$result=array("code"=>0,"msg"=>"已成功绑定QQ账号！","url"=>"./editinfo.php");
 		}else{
 			$_SESSION['Oauth_qq_uid']=$openId;
@@ -137,7 +137,7 @@ if($_GET['code'] && ($conf['login_qq']==1 || $conf['login_qq']==3 || $conf['logi
 		</div>
 		<div id="qrimg" class="list-group-item">
 		</div>
-		<div class="list-group-item" id="mobile" style="display:none;"><button type="button" id="mlogin" onclick="mloginurlnew()" class="btn btn-warning btn-block">跳转QQ快捷登录</button><br/><button type="button" onclick="qrlogin()" class="btn btn-success btn-block">我已完成登录</button></div>
+		<div class="list-group-item" id="mobile" style="display:none;"><button type="button" onclick="qrlogin()" class="btn btn-success btn-block">我已完成登录</button></div>
 		<div class="list-group-item">
 		<div class="btn-group">
 		<a href="login.php" class="btn btn-primary btn-rounded"><i class="fa fa-user"></i>&nbsp;返回登录</a>

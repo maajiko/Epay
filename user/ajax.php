@@ -7,6 +7,21 @@ if(!checkRefererHost())exit('{"code":403}');
 @header('Content-Type: application/json; charset=UTF-8');
 
 switch($act){
+case 'sysinfo':
+	$data = [
+		'sitename' => $conf['sitename'],
+		'public_key' => $conf['public_key'],
+		'reg' => $conf['reg_open']==1,
+		'reg_pay' => $conf['reg_pay']==1,
+		'reg_pay_price' => $conf['reg_pay_price'],
+		'reg_invitecode' => $conf['reg_open']==2,
+		'login_alipay' => $conf['login_alipay']>0 || $conf['login_alipay']==-1,
+		'login_qq' => $conf['login_qq']>0 || $conf['login_qq']==-1,
+		'login_wx' => $conf['login_wx']>0 || $conf['login_wx']==-1,
+		'login_key' => !$conf['close_keylogin'],
+	];
+	exit(json_encode(['code'=>0, 'data'=>$data]));
+break;
 case 'testpay':
 	if(!$conf['test_open'])exit('{"code":-1,"msg":"未开启测试支付"}');
 	$money=trim($_POST['money']);
@@ -34,7 +49,7 @@ case 'login':
 	$pass=trim($_POST['pass']);
 	$enc_type = isset($_POST['enc']) ? $_POST['enc'] : '0';
 	if(empty($user) || empty($pass))exit('{"code":-1,"msg":"请确保各项不能为空"}');
-	if(!$_POST['csrf_token'] || $_POST['csrf_token']!=$_SESSION['csrf_token'])exit('{"code":-1,"msg":"CSRF TOKEN ERROR"}');
+	//if(!$_POST['csrf_token'] || $_POST['csrf_token']!=$_SESSION['csrf_token'])exit('{"code":-1,"msg":"CSRF TOKEN ERROR"}');
 
 	if($conf['captcha_open_login']==1){
 		if(!isset($_SESSION['gtserver']))exit('{"code":-1,"msg":"验证加载失败"}');
@@ -71,6 +86,10 @@ case 'login':
 			$DB->update('user', ['qq_uid'=>$qq_uid], ['uid'=>$uid]);
 			unset($_SESSION['Oauth_qq_uid']);
 		}
+		if($wxa_uid=$_SESSION['Oauth_wxa_uid']){
+			$DB->update('user', ['wxa_uid'=>$wxa_uid], ['uid'=>$uid]);
+			unset($_SESSION['Oauth_wxa_uid']);
+		}
 		$city=get_ip_city($clientip);
 		$DB->insert('log', ['uid'=>$uid, 'type'=>'普通登录', 'date'=>'NOW()', 'ip'=>$clientip, 'city'=>$city]);
 
@@ -86,15 +105,41 @@ case 'login':
 		setcookie("user_token", $token, time() + 2592000);
 		$DB->exec("update `pre_user` set `lasttime`=NOW() where `uid`='$uid'");
 		if(empty($userrow['account']) || empty($userrow['username'])){
-			$result=array("code"=>0,"msg"=>"登录成功！正在跳转到收款账号设置","url"=>"./editinfo.php?start=1");
+			$result=array("code"=>0,"user_token"=>$token,"msg"=>"登录成功！正在跳转到收款账号设置","url"=>"./editinfo.php?start=1");
 		}else{
-			$result=array("code"=>0,"msg"=>"登录成功！正在跳转到用户中心","url"=>"./");
+			$result=array("code"=>0,"user_token"=>$token,"msg"=>"登录成功！正在跳转到用户中心","url"=>"./");
 		}
 		unset($_SESSION['csrf_token']);
 	}else {
 		$result=array("code"=>-1,"msg"=>"用户名或密码不正确！");
 	}
 	exit(json_encode($result));
+break;
+case 'wxalogin':
+	$code = isset($_POST['code'])?trim($_POST['code']):exit('{"code":-1,"msg":"code不能为空"}');
+	$wxinfo = \lib\Channel::getWeixin($conf['login_wxa']);
+	if(!$wxinfo)exit('{"code":-1,"msg":"快捷登录微信小程序不存在"}');
+	try{
+		$openid = wechat_applet_oauth($code, $wxinfo);
+	}catch(Exception $e){
+		exit('{"code":-1,"msg":"'.$e->getMessage().'"}');
+	}
+	$userrow=$DB->getRow("SELECT * FROM pre_user WHERE wxa_uid='$openid' LIMIT 1");
+	if($userrow){
+		$uid=$userrow['uid'];
+		$key=$userrow['key'];
+		$DB->insert('log', ['uid'=>$uid, 'type'=>'微信快捷登录', 'date'=>'NOW()', 'ip'=>$clientip]);
+		$session=md5($uid.$key.$password_hash);
+		$expiretime=time()+2592000;
+		$token=authcode("{$uid}\t{$session}\t{$expiretime}", 'ENCODE', SYS_KEY);
+		setcookie("user_token", $token, time() + 2592000);
+		$DB->exec("update `pre_user` set `lasttime`=NOW() where `uid`='$uid'");
+		$result=array("code"=>0,"user_token"=>$token,"msg"=>"登录成功！");
+		exit(json_encode($result));
+	}else{
+		$_SESSION['Oauth_wxa_uid'] = $openid;
+		exit('{"code":-2,"msg":"未绑定"}');
+	}
 break;
 case 'connect':
 	$type = isset($_POST['type'])?$_POST['type']:exit('{"code":-1,"msg":"no type"}');

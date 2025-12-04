@@ -236,7 +236,7 @@ class PdoHelper
 			if($stmt) {
 				$result = $stmt->execute($_array);
 				if($result!==false){
-					return $result;
+					return $stmt->rowCount();
 				}else{
 					$this->errorInfo = $stmt->errorInfo();
 					return false;

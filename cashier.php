@@ -51,11 +51,12 @@ if(strpos($_SERVER['HTTP_USER_AGENT'], 'MicroMessenger')!==false){
 <div class="w1080 order-amount12" style="height: auto;">
     <h2><font style="color: red">当前支付方式暂时关闭维护，请更换其他方式支付</font></h2>
 </div>
+<?php if(in_array('qqpay',array_column($paytype,'name'))){?>
 <div class="w1080 order-amount12" style="height: auto;">
     <h2 style="font-size:18px"><font style="color: green">如果您需要微信支付请将微信余额转到QQ再选择QQ钱包支付！</font></h2>
 	<h3><a href="./wx.html" style="font-size:20px;color:blue">点击查看微信余额转到QQ钱包教程</a></h3>
 </div>
-<?php }else{?>
+<?php }}else{?>
 <div class="w1080 order-amount12">
     <ul class="order-amount12-left">
         <li>

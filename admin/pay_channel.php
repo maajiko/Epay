@@ -113,6 +113,15 @@ unset($rs);
 					</div>
 					</div>
 					</div>
+					<div class="form-group">
+						<label class="col-sm-2 control-label no-padding-right">开放时间</label>
+						<div class="col-sm-5">
+							<input type="text" class="form-control" name="timestart" id="timestart" placeholder="开始时间0~23小时" title="">
+						</div>
+						<div class="col-sm-5">
+							<input type="text" class="form-control" name="timestop" id="timestop" placeholder="结束时间0~23小时" title="">
+						</div>
+					</div>
 				</form>
 			</div>
 			<div class="modal-footer">
@@ -313,6 +322,8 @@ function addframe(){
 	$("#paymin").val('');
 	$("#paymax").val('');
 	$("#plugin").empty();
+	$("#timestart").val('');
+	$("#timestop").val('');
 }
 function editframe(id){
 	var ii = layer.load(2, {shade:[0.1,'#fff']});
@@ -336,6 +347,8 @@ function editframe(id){
 				$("#paymin").val(data.data.paymin);
 				$("#paymax").val(data.data.paymax);
 				$("#mode").val(data.data.mode);
+				$("#timestart").val(data.data.timestart);
+				$("#timestop").val(data.data.timestop);
 				changeType(data.data.plugin);
 				changeMode()
 			}else{
@@ -370,6 +383,8 @@ function copyframe(id){
 				$("#paymin").val(data.data.paymin);
 				$("#paymax").val(data.data.paymax);
 				$("#mode").val(data.data.mode);
+				$("#timestart").val(data.data.timestart);
+				$("#timestop").val(data.data.timestop);
 				changeType(data.data.plugin);
 				changeMode()
 			}else{

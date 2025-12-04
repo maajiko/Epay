@@ -111,6 +111,26 @@ class ShengPayClient
 		return $this->rsaPubilcSign($this->getSignContent($param), $param['sign']);
 	}
 
+	//解密事件消息
+	public function decrpytEvent($ciphertext, $nonceStr, $associatedData, $aeskey){
+		$ciphertext = base64_decode($ciphertext);
+        if (strlen($ciphertext) <= 16) {
+            return false;
+        }
+
+        if (function_exists('sodium_crypto_aead_aes256gcm_is_available') && sodium_crypto_aead_aes256gcm_is_available()) {
+            return sodium_crypto_aead_aes256gcm_decrypt($ciphertext, $associatedData, $nonceStr, $aeskey);
+        }
+        if (PHP_VERSION_ID >= 70100 && in_array('aes-256-gcm', openssl_get_cipher_methods())) {
+            $ctext = substr($ciphertext, 0, -16);
+            $authTag = substr($ciphertext, -16);
+
+            return openssl_decrypt($ctext, 'aes-256-gcm', $aeskey, OPENSSL_RAW_DATA, $nonceStr, $authTag, $associatedData);
+        }
+
+        return false;
+	}
+
 	//应用私钥签名
 	private function rsaPrivateSign($data){
 		$priKey = $this->mchPrivateKey;

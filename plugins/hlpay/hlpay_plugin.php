@@ -44,6 +44,8 @@ class hlpay_plugin
 		'select_alipay' => [
 			'1' => '扫码支付',
 			'2' => 'JS支付',
+			'3' => 'PC支付',
+			'4' => 'H5支付',
 		],
 		'select_wxpay' => [
 			'1' => '扫码支付',
@@ -112,6 +114,11 @@ class hlpay_plugin
 
 		$client = new HlpayClient($channel['appid'], $channel['appkey'], $channel['appsecret'], $channel['appmchid']);
 
+		if($_GET['r'] == 1){
+			$returnUrl = $siteurl.'pay/ok/'.TRADE_NO.'/';
+		}else{
+			$returnUrl = $siteurl.'pay/return/'.TRADE_NO.'/';
+		}
 		$param = [
 			'payType' => $pay_type,
 			'paySubType' => $pay_sub_type,
@@ -121,7 +128,7 @@ class hlpay_plugin
 			'clientIp'  => $clientip,
 			'subject'  => $ordername,
 			'notifyUrl'  => $conf['localurl'].'pay/notify/'.TRADE_NO.'/',
-			'redirectUrl' => $siteurl.'pay/return/'.TRADE_NO.'/',
+			'redirectUrl' => $returnUrl,
 		];
 		if(!empty($channel['channelcode'])){
 			$param['channelCode'] = $channel['channelcode'];
@@ -151,18 +158,29 @@ class hlpay_plugin
 	//支付宝支付
 	static public function alipay(){
 		global $channel, $device, $mdevice, $siteurl;
-		if(in_array('2',$channel['apptype']) && !in_array('1',$channel['apptype'])){
+		if(in_array('4',$channel['apptype']) && ($device=='mobile' || checkmobile())){
+			$pay_sub_type = 'H5';
+		}elseif(in_array('3',$channel['apptype']) && ($device=='pc' || !checkmobile())){
+			$pay_sub_type = 'PC';
+		}elseif(in_array('1',$channel['apptype'])){
+			$pay_sub_type = 'NATIVE';
+		}elseif(in_array('2',$channel['apptype'])){
 			$code_url = $siteurl.'pay/alipayjs/'.TRADE_NO.'/';
+			return ['type'=>'qrcode','page'=>'alipay_qrcode','url'=>$code_url];
+		}elseif(in_array('4',$channel['apptype'])){
+			$qrcode_url = $siteurl.'pay/alipay/'.TRADE_NO.'/?r=1';
+			return ['type'=>'qrcode','page'=>'alipay_qrcode','url'=>$qrcode_url];
 		}else{
-			try{
-				$result = self::addOrder('ALIPAY', 'NATIVE');
-				$code_url = $result['payInfo'];
-			}catch(Exception $ex){
-				return ['type'=>'error','msg'=>'支付宝支付下单失败！'.$ex->getMessage()];
-			}
+			return ['type'=>'error','msg'=>'当前支付通道没有开启的支付方式'];
+		}
+		try{
+			$result = self::addOrder('ALIPAY', $pay_sub_type);
+			$code_url = $result['payInfo'];
+		}catch(Exception $ex){
+			return ['type'=>'error','msg'=>'支付宝支付下单失败！'.$ex->getMessage()];
 		}
 
-		if(checkalipay() || $mdevice=='alipay'){
+		if(checkalipay() || $mdevice=='alipay' || $pay_sub_type=='H5' || $pay_sub_type=='PC'){
 			return ['type'=>'jump','url'=>$code_url];
 		}else{
 			return ['type'=>'qrcode','page'=>'alipay_qrcode','url'=>$code_url];
@@ -245,8 +263,7 @@ class hlpay_plugin
 			$wxinfo = \lib\Channel::getWeixin($channel['appwxmp']);
 			if(!$wxinfo) return ['type'=>'error','msg'=>'支付通道绑定的微信公众号不存在'];
 			try{
-				$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-				$openid = $tools->GetOpenid();
+				$openid = wechat_oauth($wxinfo);
 			}catch(Exception $e){
 				return ['type'=>'error','msg'=>$e->getMessage()];
 			}
@@ -282,8 +299,7 @@ class hlpay_plugin
 		$wxinfo = \lib\Channel::getWeixin($channel['appwxa']);
 		if(!$wxinfo)exit('{"code":-1,"msg":"支付通道绑定的微信小程序不存在"}');
 		try{
-			$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-			$openid = $tools->AppGetOpenid($code);
+			$openid = wechat_applet_oauth($code, $wxinfo);
 		}catch(Exception $e){
 			exit('{"code":-1,"msg":"'.$e->getMessage().'"}');
 		}
@@ -349,8 +365,8 @@ class hlpay_plugin
 			if ($data['state'] == '3') {
 				$out_trade_no = $data['mchOrderNo'];
 				$trade_no = $data['payOrderNo'];
-				$bill_trade_no = $data['instOrderNo'];
-				$bill_mch_trade_no = $data['channelOrderNo'];
+				$bill_trade_no = $data['channelOrderNo'];
+				$bill_mch_trade_no = $data['instOrderNo'];
 				if($out_trade_no == TRADE_NO){
 					processNotify($order, $trade_no, null, $bill_trade_no, $bill_mch_trade_no);
 				}

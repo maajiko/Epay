@@ -207,6 +207,39 @@ if(strlen($userrow['phone'])==11){
 				 </div>
 				</div><?php }?>
 
+				<?php if($conf['orderprint'] == 1){
+					$print_config = unserialize($userrow['print_config']);
+				?><div class="line line-dashed b-b line-lg pull-in"></div>
+				<div class="form-group"><div class="col-sm-offset-2 col-sm-4"><h4>小票打印设置：</h4></div></div>
+				<div class="form-group">
+					<label class="col-sm-2 control-label">打印机序列号</label>
+					<div class="col-sm-9">
+						<input class="form-control" type="text" name="print_devid" value="<?php echo $print_config['devid']?>">
+					</div>
+				</div>
+				<div class="form-group">
+					<label class="col-sm-2 control-label">小票自动打印开关</label>
+					<div class="col-sm-9">
+						<select class="form-control" name="print_order" default="<?php echo $userrow['print_order']?>"><option value="0">关闭</option><option value="1">开启-仅聚合收款码</option><option value="2">开启-所有订单</option></select>
+					</div>
+				</div>
+				<div class="form-group">
+					<label class="col-sm-2 control-label">打印小票张数</label>
+					<div class="col-sm-9">
+						<input class="form-control" type="number" name="print_count" value="<?php echo $print_config['count']?>" min="1" max="5" placeholder="默认1张，范围：1-5">
+					</div>
+				</div>
+				<div class="form-group">
+					<label class="col-sm-2 control-label">打印时自动播报语音</label>
+					<div class="col-sm-9">
+						<select class="form-control" name="print_voice" default="<?php echo $print_config['voice']?>"><option value="0">否</option><option value="1">是</option></select>
+					</div>
+				</div>
+				<div class="form-group">
+				  <div class="col-sm-offset-2 col-sm-4"><input type="button" id="editPrint" value="确定修改" class="btn btn-primary form-control"/><br/>
+				 </div>
+				</div><?php }?>
+
 				<div class="line line-dashed b-b line-lg pull-in"></div>
 				<div class="form-group"><div class="col-sm-offset-2 col-sm-4"><h4>联系方式与功能设置：</h4></div></div>
 				<?php if($conf['verifytype']==1){?>
@@ -690,6 +723,27 @@ $(document).ready(function(){
 			type : "POST",
 			url : "ajax2.php?act=edit_voice",
 			data : {voice_devid:voice_devid, voice_order:voice_order},
+			dataType : 'json',
+			success : function(data) {
+				layer.close(ii);
+				if(data.code == 1){
+					layer.alert('修改成功！', {icon:1});
+				}else{
+					layer.alert(data.msg);
+				}
+			}
+		});
+	});
+	$("#editPrint").click(function(){
+		var print_order=$("select[name='print_order']").val();
+		var print_devid=$("input[name='print_devid']").val();
+		var print_count=$("input[name='print_count']").val();
+		var print_voice=$("select[name='print_voice']").val();
+		var ii = layer.load(2, {shade:[0.1,'#fff']});
+		$.ajax({
+			type : "POST",
+			url : "ajax2.php?act=edit_print",
+			data : {print_order:print_order, print_devid:print_devid, print_count:print_count, print_voice:print_voice},
 			dataType : 'json',
 			success : function(data) {
 				layer.close(ii);

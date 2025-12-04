@@ -27,7 +27,7 @@ class alipaysl_plugin
 			'appmchid' => [
 				'name' => '商户授权token',
 				'type' => 'input',
-				'note' => '',
+				'note' => '在第三方应用-商家授权页面获取',
 			],
 		],
 		'select' => [ //选择已开启的支付方式
@@ -62,10 +62,7 @@ class alipaysl_plugin
 		else{
 		
 		if(checkwechat()){
-			if(!$submit2){
-				return ['type'=>'jump','url'=>'/pay/submit/'.TRADE_NO.'/'];
-			}
-			return ['type'=>'page','page'=>'wxopen'];
+			return ['type'=>'jump','url'=>'/pay/qrcode/'.TRADE_NO.'/?wap=1'];
 		}
 		
 		if(!empty($conf['localurl_alipay']) && !strpos($conf['localurl_alipay'],$_SERVER['HTTP_HOST'])){
@@ -80,23 +77,8 @@ class alipaysl_plugin
 					return ['type'=>'jump','url'=>'/pay/qrcode/'.TRADE_NO.'/'];
 				}
 			}
-			$alipay_config = require(PAY_ROOT.'inc/config.php');
-			$alipay_config['notify_url'] = $conf['localurl'].'pay/notify/'.TRADE_NO.'/';
-			$alipay_config['return_url'] = $siteurl.'pay/return/'.TRADE_NO.'/';
-			$bizContent = [
-				'out_trade_no' => TRADE_NO,
-				'total_amount' => $order['realmoney'],
-				'subject' => $ordername,
-			];
-			$bizContent['business_params'] = ['mc_create_trade_ip' => $clientip];
-			try{
-				$aop = new \Alipay\AlipayTradeService($alipay_config);
-				$html = $aop->wapPay($bizContent);
-			}catch(Exception $e){
-				return ['type'=>'error','msg'=>'支付宝下单失败！'.$e->getMessage()];
-			}
-			
-			return ['type'=>'html','data'=>$html];
+			$_GET['d']='1';
+			return self::submitwap();
 		}elseif(in_array('1',$channel['apptype'])){
 			if($conf['alipay_paymode'] == 1 || $isMobile){
 				return ['type'=>'jump','url'=>'/pay/qrcodepc/'.TRADE_NO.'/'];
@@ -110,6 +92,7 @@ class alipaysl_plugin
 				'subject' => $ordername,
 			];
 			$bizContent['business_params'] = ['mc_create_trade_ip' => $clientip];
+			self::handleExtUser($bizContent);
 			try{
 				$aop = new \Alipay\AlipayTradeService($alipay_config);
 				$html = $aop->pagePay($bizContent);
@@ -167,6 +150,24 @@ class alipaysl_plugin
 		}
 	}
 
+	static private function handleExtUser(&$bizContent){
+		global $order;
+		if(!empty($order['cert_no']) || !empty($order['cert_name']) || !empty($order['min_age'])){
+			$ext_user_info = ['need_check_info'=>'T'];
+			if(!empty($order['cert_no'])){
+				$ext_user_info['cert_type'] = 'IDENTITY_CARD';
+				$ext_user_info['cert_no'] = $order['cert_no'];
+			}
+			if(!empty($order['cert_name'])){
+				$ext_user_info['name'] = $order['cert_name'];
+			}
+			if(!empty($order['min_age'])){
+				$ext_user_info['min_age'] = $order['min_age'];
+			}
+			$bizContent['ext_user_info'] = $ext_user_info;
+		}
+	}
+
 	//电脑网站支付扫码
 	static public function qrcodepc(){
 		global $siteurl, $channel, $order, $ordername, $conf, $clientip;
@@ -183,6 +184,7 @@ class alipaysl_plugin
 				'qr_pay_mode' => '4'
 			];
 			$bizContent['business_params'] = ['mc_create_trade_ip' => $clientip];
+			self::handleExtUser($bizContent);
 			try{
 				$aop = new \Alipay\AlipayTradeService($alipay_config);
 				$url = $aop->pagePay($bizContent);
@@ -220,6 +222,7 @@ class alipaysl_plugin
 			'qrcode_width' => '230'
 		];
 		$bizContent['business_params'] = ['mc_create_trade_ip' => $clientip];
+		self::handleExtUser($bizContent);
 		try{
 			$aop = new \Alipay\AlipayTradeService($alipay_config);
 			$html = $aop->pagePay($bizContent);
@@ -255,6 +258,7 @@ class alipaysl_plugin
 			'subject' => $ordername,
 		];
 		$bizContent['business_params'] = ['mc_create_trade_ip' => $clientip];
+		self::handleExtUser($bizContent);
 		try{
 			$aop = new \Alipay\AlipayTradeService($alipay_config);
 			$html = $aop->wapPay($bizContent);
@@ -272,6 +276,9 @@ class alipaysl_plugin
 			$code_url = $siteurl.'pay/submitwap/'.TRADE_NO.'/';
 			if(!empty($conf['localurl_alipay']) && !strpos($conf['localurl_alipay'],$_SERVER['HTTP_HOST'])){
 				$code_url = $conf['localurl_alipay'].'pay/submitwap/'.TRADE_NO.'/';
+			}
+			if(isset($_GET['wap']) && !$conf['alipay_wappaylogin'] && checkmobile() && !checkwechat()){
+				return self::submitwap();
 			}
 		}elseif(!in_array('3',$channel['apptype']) && in_array('4',$channel['apptype'])){
 			$code_url = $siteurl.'pay/jspay/'.TRADE_NO.'/';
@@ -349,6 +356,7 @@ class alipaysl_plugin
 			'subject' => $ordername
 		];
 		$bizContent['business_params'] = ['mc_create_trade_ip' => $clientip];
+		self::handleExtUser($bizContent);
 		try{
 			$aop = new \Alipay\AlipayTradeService($alipay_config);
 			$result = $aop->appPay($bizContent);

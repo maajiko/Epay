@@ -232,8 +232,7 @@ class swiftpass2_plugin
 			if(!$wxinfo) return ['type'=>'error','msg'=>'支付通道绑定的微信公众号不存在'];
 
 			try{
-				$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-				$openid = $tools->GetOpenid();
+				$openid = wechat_oauth($wxinfo);
 			}catch(Exception $e){
 				return ['type'=>'error','msg'=>$e->getMessage()];
 			}
@@ -268,8 +267,7 @@ class swiftpass2_plugin
 		if(!$wxinfo)exit('{"code":-1,"msg":"支付通道绑定的微信小程序不存在"}');
 
 		try{
-			$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-			$openid = $tools->AppGetOpenid($code);
+			$openid = wechat_applet_oauth($code, $wxinfo);
 		}catch(Exception $e){
 			exit('{"code":-1,"msg":"'.$e->getMessage().'"}');
 		}

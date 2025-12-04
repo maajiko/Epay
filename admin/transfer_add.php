@@ -91,6 +91,7 @@ if(isset($_GET['account']) && isset($_GET['username'])){
 			<div class="form-group">
 				<div class="input-group"><div class="input-group-addon">支付宝账号</div>
 				<input type="text" name="payee_account" value="<?php echo $copy['account']?>" class="form-control" required placeholder="支付宝登录账号或支付宝UID或支付宝Openid"/>
+				<div class="input-group-btn"><button type="button" class="btn btn-default recent-payer-btn" data-type="alipay"><i class="fa fa-address-book"/></i></button></div>
 			</div></div>
 			<div class="form-group">
 				<div class="input-group"><div class="input-group-addon">支付宝姓名</div>
@@ -100,7 +101,10 @@ if(isset($_GET['account']) && isset($_GET['username'])){
 			<div class="form-group">
 				<div class="input-group"><div class="input-group-addon">Openid</div>
 				<input type="text" name="payee_account" value="<?php echo $copy['account']?>" class="form-control" required placeholder="只能填写微信Openid"/>
-				<div class="input-group-btn"><a href="./gettoken.php?app=wechat" class="btn btn-default">获取</a></div>
+				<div class="input-group-btn">
+					<button type="button" class="btn btn-default recent-payer-btn" data-type="wxpay"><i class="fa fa-address-book"/></i></button>
+					<a href="./gettoken.php?app=wechat" class="btn btn-default">获取</a>
+				</div>
 			</div></div>
 			<div class="form-group">
 				<div class="input-group"><div class="input-group-addon">真实姓名</div>
@@ -110,6 +114,7 @@ if(isset($_GET['account']) && isset($_GET['username'])){
 			<div class="form-group">
 				<div class="input-group"><div class="input-group-addon">收款方QQ</div>
 				<input type="text" name="payee_account" value="<?php echo $copy['account']?>" class="form-control" required/>
+				<div class="input-group-btn"><button type="button" class="btn btn-default recent-payer-btn" data-type="qqpay"><i class="fa fa-address-book"/></i></button></div>
 			</div></div>
 			<div class="form-group">
 				<div class="input-group"><div class="input-group-addon">真实姓名</div>
@@ -119,6 +124,7 @@ if(isset($_GET['account']) && isset($_GET['username'])){
 			<div class="form-group">
 				<div class="input-group"><div class="input-group-addon">银行卡号</div>
 				<input type="text" name="payee_account" value="<?php echo $copy['account']?>" class="form-control" required placeholder="收款方银行卡号"/>
+				<div class="input-group-btn"><button type="button" class="btn btn-default recent-payer-btn" data-type="bank"><i class="fa fa-address-book"/></i></button></div>
 			</div></div>
 			<div class="form-group">
 				<div class="input-group"><div class="input-group-addon">姓名</div>
@@ -157,6 +163,96 @@ var items = $("select[default]");
 for (i = 0; i < items.length; i++) {
 	$(items[i]).val($(items[i]).attr("default")||0);
 }
+
+function saveRecentPayer(type, account, name) {
+	var key = 'recent_payers_' + type;
+	var payers = JSON.parse(localStorage.getItem(key) || '[]');
+	
+	payers = payers.filter(function(payer) {
+		return payer.account !== account;
+	});
+	
+	payers.unshift({
+		account: account,
+		name: name,
+		timestamp: new Date().getTime()
+	});
+
+	if (payers.length > 5) {
+		payers = payers.slice(0, 5);
+	}
+	
+	localStorage.setItem(key, JSON.stringify(payers));
+}
+
+function getRecentPayers(type) {
+	var key = 'recent_payers_' + type;
+	return JSON.parse(localStorage.getItem(key) || '[]');
+}
+
+function showRecentPayers(type) {
+	var payers = getRecentPayers(type);
+	
+	if (payers.length === 0) {
+		layer.msg('暂无最近付款记录');
+		return;
+	}
+	
+	var html = '<div class="recent-payers-popup">';
+	html += '<h4 style="margin:15px;">最近付款人</h4>';
+	html += '<div class="list-group" style="max-height:300px;overflow-y:auto;">';
+	
+	payers.forEach(function(payer, index) {
+		html += '<a href="javascript:void(0)" class="list-group-item payer-item" data-account="' + payer.account + '" data-name="' + (payer.name || '') + '">';
+		html += '<div><strong>' + payer.account + '</strong></div>';
+		if (payer.name) {
+			html += '<div style="font-size:12px;color:#666;">' + payer.name + '</div>';
+		}
+		html += '</a>';
+	});
+	
+	html += '</div></div>';
+	
+	layer.open({
+		type: 1,
+		title: false,
+		closeBtn: 1,
+		area: ['400px', 'auto'],
+		shadeClose: true,
+		content: html,
+		success: function(layero) {
+			$(layero).find('.payer-item').on('click', function() {
+				var account = $(this).data('account');
+				var name = $(this).data('name');
+				
+				$('input[name="payee_account"]').val(account);
+				if (name) {
+					$('input[name="payee_real_name"]').val(name);
+				}
+				
+				layer.closeAll();
+			});
+		}
+	});
+}
+
+$(document).ready(function() {
+	$('.recent-payer-btn').on('click', function() {
+		var type = $(this).data('type');
+		showRecentPayers(type);
+	});
+
+	$('form').on('submit', function() {
+		var type = $('input[name="type"]').val();
+		var account = $('input[name="payee_account"]').val();
+		var name = $('input[name="payee_real_name"]').val();
+		
+		if (account) {
+			saveRecentPayer(type, account, name);
+		}
+	});
+});
+
 function balanceQuery(){
 	var type = $("input[name=type]").val();
 	var channel = $("select[name=channel]").val();

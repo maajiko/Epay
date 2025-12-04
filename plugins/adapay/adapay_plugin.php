@@ -112,8 +112,9 @@ class adapay_plugin
 	static private function addOrder($pay_channel, $openid = null){
 		global $channel, $order, $ordername, $conf, $clientip;
 
-		require PAY_ROOT . 'inc/Build.class.php';
-		$pay_config = include PAY_ROOT . 'inc/config.php';
+		require PAY_ROOT . 'inc/AdapayClient.php';
+		$client = new AdapayClient($channel['appkey'], $channel['appsecret'], $channel['appid']);
+
 		$params = [
 			'order_no' => TRADE_NO,
 			'pay_channel' => $pay_channel,
@@ -150,8 +151,8 @@ class adapay_plugin
 				$params['div_members'] = $div_members;
 			}
 		}*/
-		return \lib\Payment::lockPayData(TRADE_NO, function() use($pay_config, $params) {
-			$result = AdaPay::config($pay_config)->createPayment($params);
+		return \lib\Payment::lockPayData(TRADE_NO, function() use($client, $params) {
+			$result = $client->createPayment($params);
 			return $result['expend'];
 		});
 	}
@@ -160,8 +161,8 @@ class adapay_plugin
 	static private function pagepay($func_code, $pay_channel){
 		global $channel, $order, $ordername, $conf, $clientip, $siteurl;
 
-		require PAY_ROOT . 'inc/Build.class.php';
-		$pay_config = include PAY_ROOT . 'inc/config.php';
+		require PAY_ROOT . 'inc/AdapayClient.php';
+		$client = new AdapayClient($channel['appkey'], $channel['appsecret'], $channel['appid']);
 		$params = [
 			'adapay_func_code' => $func_code,
 			'order_no' => TRADE_NO,
@@ -177,8 +178,8 @@ class adapay_plugin
 			$params['pay_mode'] = 'delay';
 		}
 
-		return \lib\Payment::lockPayData(TRADE_NO, function() use($pay_config, $params) {
-			$result = AdaPay::config($pay_config)->queryAdapay($params);
+		return \lib\Payment::lockPayData(TRADE_NO, function() use($client, $params) {
+			$result = $client->queryAdapay($params);
 			return $result['expend'];
 		});
 	}
@@ -187,8 +188,8 @@ class adapay_plugin
 	static private function checkout($pay_channel, $member_id = null){
 		global $channel, $order, $ordername, $conf, $clientip, $siteurl;
 
-		require PAY_ROOT . 'inc/Build.class.php';
-		$pay_config = include PAY_ROOT . 'inc/config.php';
+		require PAY_ROOT . 'inc/AdapayClient.php';
+		$client = new AdapayClient($channel['appkey'], $channel['appsecret'], $channel['appid']);
 		$params = [
 			'adapay_func_code' => 'checkout',
 			'order_no' => TRADE_NO,
@@ -204,8 +205,8 @@ class adapay_plugin
 			$params['member_id'] = $member_id;
 		}
 
-		return \lib\Payment::lockPayData(TRADE_NO, function() use($pay_config, $params) {
-			$result = AdaPay::config($pay_config)->queryAdapay($params);
+		return \lib\Payment::lockPayData(TRADE_NO, function() use($client, $params) {
+			$result = $client->queryAdapay($params);
 			return $result['expend'];
 		});
 	}
@@ -318,8 +319,7 @@ class adapay_plugin
 			$wxinfo = \lib\Channel::getWeixin($channel['appwxmp']);
 			if(!$wxinfo) return ['type'=>'error','msg'=>'支付通道绑定的微信公众号不存在'];
 			try{
-				$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-				$openid = $tools->GetOpenid();
+				$openid = wechat_oauth($wxinfo);
 			}catch(Exception $e){
 				return ['type'=>'error','msg'=>$e->getMessage()];
 			}
@@ -384,8 +384,7 @@ class adapay_plugin
 		if(!$wxinfo)exit('{"code":-1,"msg":"支付通道绑定的微信小程序不存在"}');
 
 		try{
-			$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-			$openid = $tools->AppGetOpenid($code);
+			$openid = wechat_applet_oauth($code, $wxinfo);
 		}catch(Exception $e){
 			exit('{"code":-1,"msg":"'.$e->getMessage().'"}');
 		}
@@ -449,15 +448,18 @@ class adapay_plugin
 		global $channel, $order;
 
 		//file_put_contents('logs.txt',http_build_query($_POST));
+		if(!isset($_POST['sign']) || !isset($_POST['data'])){
+			return ['type'=>'html','data'=>'No'];
+		}
 
-		require_once PAY_ROOT . 'inc/Build.class.php';
-		$app = AdaPay::config(include PAY_ROOT . 'inc/config.php');
-		if ($app->ada_tools->verifySign($_POST['sign'] , $_POST['data'])) {
+		require PAY_ROOT . 'inc/AdapayClient.php';
+		$client = new AdapayClient($channel['appkey'], $channel['appsecret'], $channel['appid']);
+		if ($client->verifySign($_POST['sign'] , $_POST['data'])) {
 			$_data = json_decode($_POST['data'] , true);
 			if ($_data['status'] == 'succeeded') {
-				$api_trade_no = daddslashes($_data['id']);
-				$trade_no = daddslashes($_data['order_no']);
-				$orderAmount = sprintf('%.2f' , $_data['pay_amt']);
+				$api_trade_no = $_data['id'];
+				$trade_no = $_data['order_no'];
+				$orderAmount = $_data['pay_amt'];
 				$buyer = $_data['expend']['sub_open_id'];
 				$bill_trade_no = $_data['out_trans_id'];
 				$bill_mch_trade_no = $_data['party_order_id'];
@@ -488,7 +490,8 @@ class adapay_plugin
 		global $channel;
 		if(empty($order))exit();
 
-		require PAY_ROOT . 'inc/Build.class.php';
+		require PAY_ROOT . 'inc/AdapayClient.php';
+		$client = new AdapayClient($channel['appkey'], $channel['appsecret'], $channel['appid']);
 		$params = [
 			'payment_id' => $order['api_trade_no'],
 			'refund_order_no' => $order['refund_no'],
@@ -532,7 +535,7 @@ class adapay_plugin
 			}
 		}
 		try{
-			$res = AdaPay::config(include PAY_ROOT . 'inc/config.php')->createRefund($params);
+			$res = $client->createRefund($params);
 		}catch(Exception $e){
 			return ['code'=>-1, 'msg'=>$e->getMessage()];
 		}

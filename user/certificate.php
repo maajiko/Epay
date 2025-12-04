@@ -5,14 +5,6 @@ $title='实名认证';
 include './head.php';
 ?>
 <?php
-function showstar($num){
-	$data = '';
-	for($i=0;$i<$num;$i++){
-		$data .= '*';
-	}
-	return $data;
-}
-
 $isqrcode = false;
 if(isset($_GET['qrcode']) && $_GET['qrcode'] == '1'){
 	if(!isset($_SESSION[$uid.'_certify'])){

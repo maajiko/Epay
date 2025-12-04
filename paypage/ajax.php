@@ -14,6 +14,10 @@ $param=!empty($_POST['remark'])?htmlspecialchars(daddslashes($_POST['remark'])):
 if($_POST['token']!=$_SESSION['paypage_token'])showerrorjson('CSRF TOKEN ERROR');
 if(!$uid || $uid!=$_SESSION['paypage_uid'])showerrorjson('收款方信息无效');
 if($money<=0 || !is_numeric($money) || !preg_match('/^[0-9.]+$/', $money))showerrorjson('金额不合法');
+
+$groupconfig = getGroupConfig($userrow['gid']);
+$conf = array_merge($conf, $groupconfig);
+
 if($conf['pay_maxmoney']>0 && $money>$conf['pay_maxmoney'])showerrorjson('最大支付金额是'.$conf['pay_maxmoney'].'元');
 if($conf['pay_minmoney']>0 && $money<$conf['pay_minmoney'])showerrorjson('最小支付金额是'.$conf['pay_minmoney'].'元');
 
@@ -37,6 +41,19 @@ $userrow = $DB->getRow("SELECT `mode`,`ordername`,`channelinfo`,`money`,`pay_min
 
 if($userrow['pay_maxmoney']>0 && $money>$userrow['pay_maxmoney'])showerrorjson('最大支付金额是'.$userrow['pay_maxmoney'].'元');
 if($userrow['pay_minmoney']>0 && $money<$userrow['pay_minmoney'])showerrorjson('最小支付金额是'.$userrow['pay_minmoney'].'元');
+
+if($conf['pay_daymax'] > 0){
+	$daytotal = $DB->getColumn("select sum(money) from pre_order where `uid`=:uid and `date`='".date('Y-m-d')."' and status>0", ['uid'=>$uid]);
+	if($daytotal + $money > $conf['pay_daymax']){
+		showerrorjson('当前商户今日收款已达到限额，无法发起支付');
+	}
+}
+if($conf['pay_iplimit'] > 0 && (empty($conf['pay_iplimit_white']) || strpos($conf['pay_iplimit_white'], $clientip)===false)){
+	$ipcount = $DB->getColumn("select count(*) from pre_order where `ip`=:ip and `date`='".date('Y-m-d')."' and status>0", ['ip'=>$clientip]);
+	if($ipcount >= $conf['pay_iplimit']){
+		showerrorjson('你今天已无法再发起支付，请明天再试');
+	}
+}
 
 $trade_no=date("YmdHis").rand(11111,99999);
 $return_url=$siteurl.'paypage/success.php?trade_no='.$trade_no;

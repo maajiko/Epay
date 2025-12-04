@@ -150,12 +150,20 @@ class Channel {
 				return false;
 			}
 			elseif($channel==-1){ //随机可用通道
-				$rows=$DB->getAll("SELECT id,plugin,status,rate,apptype,mode,paymin,paymax FROM pre_channel WHERE type='$typeid' AND status=1 AND daystatus=0 ORDER BY id ASC");
+				$rows=$DB->getAll("SELECT id,plugin,status,rate,apptype,mode,paymin,paymax,timestart,timestop FROM pre_channel WHERE type='$typeid' AND status=1 AND daystatus=0 ORDER BY id ASC");
 				if(count($rows)>0){
 					$newrows = [];
 					foreach($rows as $row){
 						if($money>0 && !empty($row['paymin']) && $row['paymin']>0 && $money<$row['paymin'])continue;
 						if($money>0 && !empty($row['paymax']) && $row['paymax']>0 && $money>$row['paymax'])continue;
+						if(!isNullOrEmpty($row['timestart']) && !isNullOrEmpty($row['timestop']) && ($row['timestart']>0 || $row['timestop']>0)){
+							$hour = date('H');
+							if($row['timestart'] < $row['timestop']){
+								if($hour < $row['timestart'] || $hour > $row['timestop']) continue;
+							}else{
+								if($hour < $row['timestart'] && $hour > $row['timestop']) continue;
+							}
+						}
 						$newrows[] = $row;
 					}
 					if(count($newrows)>0){
@@ -168,12 +176,20 @@ class Channel {
 				}
 			}
 			elseif($channel==-4){ //顺序可用通道
-				$rows=$DB->getAll("SELECT id,plugin,status,rate,apptype,mode,paymin,paymax FROM pre_channel WHERE type='$typeid' AND status=1 AND daystatus=0 ORDER BY id ASC");
+				$rows=$DB->getAll("SELECT id,plugin,status,rate,apptype,mode,paymin,paymax,timestart,timestop FROM pre_channel WHERE type='$typeid' AND status=1 AND daystatus=0 ORDER BY id ASC");
 				if(count($rows)>0){
 					$newrows = [];
 					foreach($rows as $row){
 						if($money>0 && !empty($row['paymin']) && $row['paymin']>0 && $money<$row['paymin'])continue;
 						if($money>0 && !empty($row['paymax']) && $row['paymax']>0 && $money>$row['paymax'])continue;
+						if(!isNullOrEmpty($row['timestart']) && !isNullOrEmpty($row['timestop']) && ($row['timestart']>0 || $row['timestop']>0)){
+							$hour = date('H');
+							if($row['timestart'] < $row['timestop']){
+								if($hour < $row['timestart'] || $hour > $row['timestop']) continue;
+							}else{
+								if($hour < $row['timestart'] && $hour > $row['timestop']) continue;
+							}
+						}
 						$newrows[] = $row;
 					}
 					if(count($newrows)==0) return false;
@@ -187,12 +203,20 @@ class Channel {
 				}
 			}
 			elseif($channel==-5){ //首个可用通道
-				$rows=$DB->getAll("SELECT id,plugin,status,rate,apptype,mode,paymin,paymax FROM pre_channel WHERE type='$typeid' AND status=1 AND daystatus=0 ORDER BY id ASC");
+				$rows=$DB->getAll("SELECT id,plugin,status,rate,apptype,mode,paymin,paymax,timestart,timestop FROM pre_channel WHERE type='$typeid' AND status=1 AND daystatus=0 ORDER BY id ASC");
 				if(count($rows)>0){
 					$newrows = [];
 					foreach($rows as $row){
 						if($money>0 && !empty($row['paymin']) && $row['paymin']>0 && $money<$row['paymin'])continue;
 						if($money>0 && !empty($row['paymax']) && $row['paymax']>0 && $money>$row['paymax'])continue;
+						if(!isNullOrEmpty($row['timestart']) && !isNullOrEmpty($row['timestop']) && ($row['timestart']>0 || $row['timestop']>0)){
+							$hour = date('H');
+							if($row['timestart'] < $row['timestop']){
+								if($hour < $row['timestart'] || $hour > $row['timestop']) continue;
+							}else{
+								if($hour < $row['timestart'] && $hour > $row['timestop']) continue;
+							}
+						}
 						$newrows[] = $row;
 					}
 					if(count($newrows)==0) return false;
@@ -206,12 +230,20 @@ class Channel {
 				if($sub_mch_id>0){
 					$sql = " AND B.apply_id='$sub_mch_id'";
 				}
-				$rows=$DB->getAll("SELECT A.id,plugin,A.status,rate,apptype,mode,paymin,paymax,B.id subid FROM pre_subchannel B INNER JOIN pre_channel A ON B.channel=A.id WHERE B.uid='$uid' AND A.type='$typeid' AND A.status=1 AND B.status=1 AND daystatus=0{$sql} ORDER BY B.usetime ASC");
+				$rows=$DB->getAll("SELECT A.id,plugin,A.status,rate,apptype,mode,paymin,paymax,B.id subid,timestart,timestop FROM pre_subchannel B INNER JOIN pre_channel A ON B.channel=A.id WHERE B.uid='$uid' AND A.type='$typeid' AND A.status=1 AND B.status=1 AND daystatus=0{$sql} ORDER BY B.usetime ASC");
 				if(count($rows)>0){
 					$newrows = [];
 					foreach($rows as $row){
 						if($money>0 && !empty($row['paymin']) && $row['paymin']>0 && $money<$row['paymin'])continue;
 						if($money>0 && !empty($row['paymax']) && $row['paymax']>0 && $money>$row['paymax'])continue;
+						if(!isNullOrEmpty($row['timestart']) && !isNullOrEmpty($row['timestop']) && ($row['timestart']>0 || $row['timestop']>0)){
+							$hour = date('H');
+							if($row['timestart'] < $row['timestop']){
+								if($hour < $row['timestart'] || $hour > $row['timestop']) continue;
+							}else{
+								if($hour < $row['timestart'] && $hour > $row['timestop']) continue;
+							}
+						}
 						$newrows[] = $row;
 					}
 					if(count($newrows)>0){
@@ -243,17 +275,15 @@ class Channel {
 					}
 				}
 				//获取轮询组对应通道
-				$row=$DB->getRow("SELECT plugin,status,rate,apptype,mode,paymin,paymax FROM pre_channel WHERE id='$channel' LIMIT 1");
-				if($row['status']==1 && $row['daystatus']==0){
-					if(empty($money_rate))$money_rate = $row['rate'];
-					return ['typeid'=>$typeid, 'typename'=>$typename, 'plugin'=>$row['plugin'], 'channel'=>$channel, 'subchannel'=>0, 'rate'=>$money_rate, 'apptype'=>$row['apptype'], 'mode'=>$row['mode'], 'paymin'=>$row['paymin'], 'paymax'=>$row['paymax']];
-				}
+				$row=$DB->getRow("SELECT plugin,status,rate,apptype,mode,paymin,paymax,timestart,timestop FROM pre_channel WHERE id='$channel' LIMIT 1");
+				if(empty($money_rate))$money_rate = $row['rate'];
+				return ['typeid'=>$typeid, 'typename'=>$typename, 'plugin'=>$row['plugin'], 'channel'=>$channel, 'subchannel'=>0, 'rate'=>$money_rate, 'apptype'=>$row['apptype'], 'mode'=>$row['mode'], 'paymin'=>$row['paymin'], 'paymax'=>$row['paymax'],'timestart'=>$row['timestart'],'timestop'=>$row['timestop']];
 			}
 		}else{
 			//未设置用户组
-			$row=$DB->getRow("SELECT id,plugin,status,rate,apptype,mode,paymin,paymax FROM pre_channel WHERE type='$typeid' AND status=1 AND daystatus=0 ORDER BY rand() LIMIT 1");
+			$row=$DB->getRow("SELECT id,plugin,status,rate,apptype,mode,paymin,paymax,timestart,timestop FROM pre_channel WHERE type='$typeid' AND status=1 AND daystatus=0 ORDER BY rand() LIMIT 1");
 			if($row){
-				return ['typeid'=>$typeid, 'typename'=>$typename, 'plugin'=>$row['plugin'], 'channel'=>$row['id'], 'subchannel'=>0, 'rate'=>$row['rate'], 'apptype'=>$row['apptype'], 'mode'=>$row['mode'], 'paymin'=>$row['paymin'], 'paymax'=>$row['paymax']];
+				return ['typeid'=>$typeid, 'typename'=>$typename, 'plugin'=>$row['plugin'], 'channel'=>$row['id'], 'subchannel'=>0, 'rate'=>$row['rate'], 'apptype'=>$row['apptype'], 'mode'=>$row['mode'], 'paymin'=>$row['paymin'], 'paymax'=>$row['paymax'],'timestart'=>$row['timestart'],'timestop'=>$row['timestop']];
 			}
 		}
 		return false;
@@ -341,11 +371,19 @@ class Channel {
 				$channelids[] = $inforow['name'];
 			}
 			$channelids = implode(',',$channelids);
-			$rows=$DB->getAll("SELECT id,paymin,paymax FROM pre_channel WHERE id IN ($channelids) AND status=1 AND daystatus=0");
+			$rows=$DB->getAll("SELECT id,paymin,paymax,timestart,timestop FROM pre_channel WHERE id IN ($channelids) AND status=1 AND daystatus=0");
 			$newids = [];
 			foreach($rows as $channelrow){
 				if($money>0 && !empty($channelrow['paymin']) && $channelrow['paymin']>0 && $money<$channelrow['paymin'])continue;
 				if($money>0 && !empty($channelrow['paymax']) && $channelrow['paymax']>0 && $money>$channelrow['paymax'])continue;
+				if(!isNullOrEmpty($channelrow['timestart']) && !isNullOrEmpty($channelrow['timestop']) && ($channelrow['timestart']>0 || $channelrow['timestop']>0)){
+					$hour = date('H');
+					if($channelrow['timestart'] < $channelrow['timestop']){
+						if($hour < $channelrow['timestart'] || $hour > $channelrow['timestop']) continue;
+					}else{
+						if($hour < $channelrow['timestart'] && $hour > $channelrow['timestop']) continue;
+					}
+				}
 				$newids[] = $channelrow['id'];
 			}
 			if(count($newids)==0)return false;

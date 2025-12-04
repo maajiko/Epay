@@ -112,6 +112,8 @@ class zyu_plugin
 				$code_url = $result['payurl'];
 			}elseif(isset($result['payUrl'])){
 				$code_url = $result['payUrl'];
+			}elseif(isset($result['pay_url'])){
+				$code_url = $result['pay_url'];
 			}else{
 				return ['type'=>'error','msg'=>'获取支付链接失败'];
 			}
@@ -148,17 +150,17 @@ class zyu_plugin
 		global $channel, $order;
 
 		$data = array( // 返回字段
-			"memberid" => $_REQUEST["memberid"], // 商户ID
-			"orderid" =>  $_REQUEST["orderid"], // 订单号
-			"amount" =>  $_REQUEST["amount"], // 交易金额
-			"datetime" =>  $_REQUEST["datetime"], // 交易时间
-			"transaction_id" =>  $_REQUEST["transaction_id"], // 流水号
-			"returncode" => $_REQUEST["returncode"]
+			"memberid" => $_POST["memberid"], // 商户ID
+			"orderid" =>  $_POST["orderid"], // 订单号
+			"amount" =>  $_POST["amount"], // 交易金额
+			"datetime" =>  $_POST["datetime"], // 交易时间
+			"transaction_id" =>  $_POST["transaction_id"], // 流水号
+			"returncode" => $_POST["returncode"]
 		);
 
 		$sign = self::make_sign($data, $channel['appkey']);
 		
-		if ($sign === $_REQUEST["sign"]) {
+		if ($sign === $_POST["sign"]) {
 		
 			if ($data["returncode"] == "00") {
 				//付款完成后，支付宝系统发送该交易状态通知
@@ -181,18 +183,22 @@ class zyu_plugin
 	static public function return(){
 		global $channel, $order;
 
+		if(!isset($_GET["returncode"])){
+			return ['type'=>'page','page'=>'return'];
+		}
+
 		$data = array( // 返回字段
-			"memberid" => $_REQUEST["memberid"], // 商户ID
-			"orderid" =>  $_REQUEST["orderid"], // 订单号
-			"amount" =>  $_REQUEST["amount"], // 交易金额
-			"datetime" =>  $_REQUEST["datetime"], // 交易时间
-			"transaction_id" =>  $_REQUEST["transaction_id"], // 流水号
-			"returncode" => $_REQUEST["returncode"]
+			"memberid" => $_GET["memberid"], // 商户ID
+			"orderid" =>  $_GET["orderid"], // 订单号
+			"amount" =>  $_GET["amount"], // 交易金额
+			"datetime" =>  $_GET["datetime"], // 交易时间
+			"transaction_id" =>  $_GET["transaction_id"], // 流水号
+			"returncode" => $_GET["returncode"]
 		);
 
 		$sign = self::make_sign($data, $channel['appkey']);
 
-		if ($sign === $_REQUEST["sign"]) {
+		if ($sign === $_GET["sign"]) {
 		
 		   if ($data["returncode"] == "00") {
 				//付款完成后，支付宝系统发送该交易状态通知

@@ -167,6 +167,8 @@ class wxpayn_plugin
 			$code_url = $siteurl.'pay/jspay/'.TRADE_NO.'/';
 		}elseif(in_array('2',$channel['apptype']) && $channel['appwxa']>0){
 			$code_url = $siteurl.'pay/wap/'.TRADE_NO.'/';
+		}elseif(in_array('3',$channel['apptype'])){
+			$code_url = $siteurl.'pay/h5/'.TRADE_NO.'/';
 		}else{
 			return ['type'=>'error','msg'=>'当前支付通道没有开启的支付方式'];
 		}
@@ -193,8 +195,7 @@ class wxpayn_plugin
 
 			//①、获取用户openid
 			try{
-				$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-				$openid = $tools->GetOpenid();
+				$openid = wechat_oauth($wxinfo);
 			}catch(Exception $e){
 				return ['type'=>'error','msg'=>$e->getMessage()];
 			}
@@ -273,6 +274,10 @@ class wxpayn_plugin
 	static public function h5(){
 		global $siteurl, $channel, $order, $ordername, $conf, $clientip;
 
+		if(checkwechat()){
+			return ['type'=>'page','page'=>'wxopen'];
+		}
+
 		$param = [
 			'description' => $ordername,
 			'out_trade_no' => TRADE_NO,
@@ -325,8 +330,7 @@ class wxpayn_plugin
 
 		//①、获取用户openid
 		try{
-			$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-			$openid = $tools->AppGetOpenid($code);
+			$openid = wechat_applet_oauth($code, $wxinfo);
 		}catch(Exception $e){
 			exit('{"code":-1,"msg":"'.$e->getMessage().'"}');
 		}
@@ -401,7 +405,7 @@ class wxpayn_plugin
 				\lib\Payment::updateOrderCombine(TRADE_NO, $sub_orders);
 			}
 			if($method == 'app'){
-				return ['type'=>'app','data'=>$result];
+				return ['type'=>'app','data'=>json_encode($result)];
 			}
 			$params = [
 				'nonceStr' => $result['noncestr'],

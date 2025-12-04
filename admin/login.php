@@ -21,7 +21,7 @@ if(isset($_GET['act']) && $_GET['act']=='login'){
   if($verifycode==1 && (!$code || strtolower($code) != $_SESSION['vc_code'])){
     exit(json_encode(['code'=>-1,'msg'=>'验证码错误']));
   }
-  $errcount = $DB->getColumn("SELECT count(*) FROM `pre_log` WHERE `ip`='$clientip' AND `date`>DATE_SUB(NOW(),INTERVAL 1 DAY) AND `uid`=0 AND `type`='登录失败'");
+  $errcount = $DB->getColumn("SELECT count(*) FROM `pre_log` WHERE `ip`=:ip AND `date`>DATE_SUB(NOW(),INTERVAL 1 DAY) AND `uid`=0 AND `type`='登录失败'", [':ip'=>$clientip]);
   if($errcount >= $login_limit_count && file_exists($login_limit_file)){
     exit(json_encode(['code'=>-1,'msg'=>'多次登录失败，暂时禁止登录。可删除@login.lock文件解除限制']));
   }

@@ -272,7 +272,7 @@ function batch_act_order(ids, index, action){
 		success : function(data) {
 			layer.close(ii);
 			index > 0 && searchSubmit();
-			if(data.code == 0){
+			if(data.code >= 0){
 				batch_act_order(ids, index + 1, action);
 			}else{
 				layer.alert(row.trade_no + $.action_arr[action] + '失败：' + data.msg, {icon:7});

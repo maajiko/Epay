@@ -21,13 +21,21 @@ class MsgNotice
                 return self::send_robot_msg($scene, $conf['msgrobot_url'], $param, true);
             }
         }else{
-            $userrow = $DB->find('user', 'phone,email,wx_uid,msgconfig,voice_order,voice_devid', ['uid'=>$uid]);
+            $userrow = $DB->find('user', 'phone,email,wx_uid,codename,msgconfig,voice_order,voice_devid,print_order,print_config', ['uid'=>$uid]);
             $userrow['msgconfig'] = unserialize($userrow['msgconfig']);
-            if($scene == 'order' && $userrow['msgconfig']['order_money']>0 && $param['money']<$userrow['msgconfig']['order_money']) return false;
-            if($scene == 'balance') $param['msgmoney'] = $userrow['msgconfig']['balance_money'];
+
             if($conf['voicenotice'] == 1 && $scene == 'order' && $userrow['voice_order'] == 1 && $param['name']!='付款码收款'){
                 self::send_voice($userrow['voice_devid'], $param['type'], $param['money']);
             }
+            if($conf['orderprint'] == 1 && $scene == 'order' && ($userrow['print_order'] == 2 || $userrow['print_order'] == 1 && $param['tid']==3)){
+                $param['codename'] = $userrow['codename'];
+                $print_config = unserialize($userrow['print_config']);
+                (new Printer($conf['print_appid'], $conf['print_appsecret']))->print($print_config['devid'], $param, $print_config['count'], $print_config['voice']==1, true);
+            }
+
+            if($scene == 'order' && $userrow['msgconfig']['order_money']>0 && $param['money']<$userrow['msgconfig']['order_money']) return false;
+            if($scene == 'balance') $param['msgmoney'] = $userrow['msgconfig']['balance_money'];
+
             if($userrow['msgconfig'][$scene] == 1 && !empty($userrow['wx_uid'])){
                 self::send_wechat_tplmsg($scene, $userrow['wx_uid'], $param);
             }elseif($userrow['msgconfig'][$scene] == 2 && !empty($userrow['email']) && self::getMessageSwitch($scene) == 1){
@@ -253,7 +261,7 @@ class MsgNotice
             $content = '尊敬的商户，'.$param['type'].'！<br/><b>系统订单号：</b>'.$param['trade_no'].'<br/><b>投诉原因：</b>'.$param['title'].'<br/><b>投诉详情：</b>'.$param['content'].'<br/><b>商品名称：</b>'.$param['ordername'].'<br/><b>订单金额：</b>¥'.$param['money'].'<br/><b>投诉时间：</b>'.$param['time'];
         }elseif($scene == 'mchrisk'){
             $title = '渠道商户违规处置通知 - '.$conf['sitename'];
-            $content = '尊敬的商户，您有新的渠道商户违规处置记录！<br/><b>渠道子商户号：</b>'.$param['mchid'].'<br/><b>商户名称：</b>'.$param['mchname'].'<br/><b>风险类型：</b>'.$param['risk_desc'].'<br/><b>处罚方案：</b>'.$param['punish_type'].'（'.$param['punish_desc'].'）<br/><b>记录时间：</b>'.$param['punish_time'];
+            $content = '尊敬的商户，您有新的渠道商户违规处置记录！<br/><b>渠道子商户号：</b>'.$param['mchid'].'<br/><b>商户名称：</b>'.$param['mchname'].'<br/><b>风险类型：</b>'.$param['risk_desc'].'<br/><b>管控能力：</b>'.$param['punish_type'].'<br/><b>管控开始时间：</b>'.$param['punish_time'].'<br/><b>解除方式：</b>'.$param['recover_way'];
         }elseif($scene == 'balance'){
             $title = '商户余额不足提醒 - '.$conf['sitename'];
             $content = '尊敬的商户，您的手续费余额不足'.$param['msgmoney'].'元，为避免造成订单失败请及时充值。<br/>当前余额：'.$param['money'].'元';

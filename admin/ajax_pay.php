@@ -69,7 +69,7 @@ case 'savePayType':
 		$name=trim($_POST['name']);
 		$showname=trim($_POST['showname']);
 		$device=intval($_POST['device']);
-		if(!preg_match('/^[a-zA-Z0-9]+$/',$name)){
+		if(!preg_match('/^[a-zA-Z0-9.]+$/',$name)){
 			exit('{"code":-1,"msg":"调用值不符合规则"}');
 		}
 		$row=$DB->getRow("select * from pre_type where name='$name' and device='$device' limit 1");
@@ -83,7 +83,7 @@ case 'savePayType':
 		$name=trim($_POST['name']);
 		$showname=trim($_POST['showname']);
 		$device=intval($_POST['device']);
-		if(!preg_match('/^[a-zA-Z0-9]+$/',$name)){
+		if(!preg_match('/^[a-zA-Z0-9.]+$/',$name)){
 			exit('{"code":-1,"msg":"调用值不符合规则"}');
 		}
 		$row=$DB->getRow("select * from pre_type where name='$name' and device='$device' and id<>$id limit 1");
@@ -203,6 +203,8 @@ case 'saveChannel':
 		$paymin=trim($_POST['paymin']);
 		$paymax=trim($_POST['paymax']);
 		$daymaxorder=intval($_POST['daymaxorder']);
+		$timestart=trim($_POST['timestart']);
+		$timestop=trim($_POST['timestop']);
 		if(empty($rate)) $rate = 100;
 		if(!preg_match('/^[0-9.]+$/',$rate)){
 			exit('{"code":-1,"msg":"分成比例不符合规则"}');
@@ -219,7 +221,7 @@ case 'saveChannel':
 		$row=$DB->getRow("SELECT * FROM pre_channel WHERE name='$name' LIMIT 1");
 		if($row)
 			exit('{"code":-1,"msg":"支付通道名称重复"}');
-		$data = ['name'=>$name, 'rate'=>$rate, 'costrate'=>$costrate, 'mode'=>$mode, 'type'=>$type, 'plugin'=>$plugin, 'daytop'=>$daytop, 'paymin'=>$paymin, 'paymax'=>$paymax, 'daymaxorder'=>$daymaxorder];
+		$data = ['name'=>$name, 'rate'=>$rate, 'costrate'=>$costrate, 'mode'=>$mode, 'type'=>$type, 'plugin'=>$plugin, 'daytop'=>$daytop, 'paymin'=>$paymin, 'paymax'=>$paymax, 'daymaxorder'=>$daymaxorder, 'timestart'=>$timestart, 'timestop'=>$timestop];
 		if($DB->insert('channel', $data))exit('{"code":0,"msg":"新增支付通道成功！"}');
 		else exit('{"code":-1,"msg":"新增支付通道失败['.$DB->error().']"}');
 	}elseif($_POST['action'] == 'copy'){
@@ -236,6 +238,8 @@ case 'saveChannel':
 		$paymin=trim($_POST['paymin']);
 		$paymax=trim($_POST['paymax']);
 		$daymaxorder=intval($_POST['daymaxorder']);
+		$timestart=trim($_POST['timestart']);
+		$timestop=trim($_POST['timestop']);
 		if(!preg_match('/^[0-9.]+$/',$rate)){
 			exit('{"code":-1,"msg":"分成比例不符合规则"}');
 		}
@@ -251,7 +255,7 @@ case 'saveChannel':
 		$nrow=$DB->getRow("SELECT * FROM pre_channel WHERE name='$name' LIMIT 1");
 		if($nrow)
 			exit('{"code":-1,"msg":"支付通道名称重复"}');
-		$data = ['name'=>$name, 'rate'=>$rate, 'costrate'=>$costrate, 'mode'=>$mode, 'type'=>$type, 'plugin'=>$plugin, 'daytop'=>$daytop, 'paymin'=>$paymin, 'paymax'=>$paymax, 'daymaxorder'=>$daymaxorder, 'config'=>$row['config'], 'apptype'=>$row['apptype'], 'appwxmp'=>$row['appwxmp'], 'appwxa'=>$row['appwxa']];
+		$data = ['name'=>$name, 'rate'=>$rate, 'costrate'=>$costrate, 'mode'=>$mode, 'type'=>$type, 'plugin'=>$plugin, 'daytop'=>$daytop, 'paymin'=>$paymin, 'paymax'=>$paymax, 'daymaxorder'=>$daymaxorder, 'config'=>$row['config'], 'apptype'=>$row['apptype'], 'appwxmp'=>$row['appwxmp'], 'appwxa'=>$row['appwxa'], 'timestart'=>$timestart, 'timestop'=>$timestop];
 		if($DB->insert('channel', $data))exit('{"code":0,"msg":"复制支付通道成功！"}');
 		else exit('{"code":-1,"msg":"复制支付通道失败['.$DB->error().']"}');
 	}elseif($_POST['action'] == 'edit'){
@@ -268,6 +272,8 @@ case 'saveChannel':
 		$paymin=trim($_POST['paymin']);
 		$paymax=trim($_POST['paymax']);
 		$daymaxorder=intval($_POST['daymaxorder']);
+		$timestart=trim($_POST['timestart']);
+		$timestop=trim($_POST['timestop']);
 		if(!preg_match('/^[0-9.]+$/',$rate)){
 			exit('{"code":-1,"msg":"分成比例不符合规则"}');
 		}
@@ -283,7 +289,7 @@ case 'saveChannel':
 		$nrow=$DB->getRow("SELECT * FROM pre_channel WHERE name='$name' AND id<>$id LIMIT 1");
 		if($nrow)
 			exit('{"code":-1,"msg":"支付通道名称重复"}');
-		$data = ['name'=>$name, 'rate'=>$rate, 'costrate'=>$costrate, 'mode'=>$mode, 'type'=>$type, 'plugin'=>$plugin, 'daytop'=>$daytop, 'paymin'=>$paymin, 'paymax'=>$paymax, 'daymaxorder'=>$daymaxorder];
+		$data = ['name'=>$name, 'rate'=>$rate, 'costrate'=>$costrate, 'mode'=>$mode, 'type'=>$type, 'plugin'=>$plugin, 'daytop'=>$daytop, 'paymin'=>$paymin, 'paymax'=>$paymax, 'daymaxorder'=>$daymaxorder, 'timestart'=>$timestart, 'timestop'=>$timestop];
 		if($DB->update('channel', $data, ['id'=>$id])!==false){
 			if($row['daystatus']==1 && ($daytop==0 || $daytop>$row['daytop'] || $daymaxorder==0)){
 				$DB->exec("UPDATE pre_channel SET daystatus=0 WHERE id='$id'");

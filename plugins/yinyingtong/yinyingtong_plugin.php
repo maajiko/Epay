@@ -19,25 +19,25 @@ class yinyingtong_plugin
 				'type' => 'input',
 				'note' => '同时是私钥证书密码',
 			],
+			'productkey' => [
+				'name' => '产品密钥',
+				'type' => 'input',
+				'note' => '用于支付回调数据解密，填错将无法回调',
+			],
 			'appmchid' => [
-                'name' => '商户号',
+                'name' => '交易商户企业号',
+                'type' => 'input',
+                'note' => '',
+			],
+			'trade_platform_no' => [
+                'name' => '平台商企业号(参考号)',
                 'type' => 'input',
                 'note' => '',
 			],
 			'channel_merch_no' => [
                 'name' => '渠道商户号',
                 'type' => 'input',
-                'note' => '可留空',
-			],
-			'trade_ent_no' => [
-                'name' => '交易商户企业号',
-                'type' => 'input',
-                'note' => '如需分账则必填，否则留空',
-			],
-			'trade_platform_no' => [
-                'name' => '平台商企业号',
-                'type' => 'input',
-                'note' => '如需分账则必填，否则留空',
+                'note' => '可留空，多个渠道商户号可用,分隔',
 			],
 		],
 		'select' => null,
@@ -67,7 +67,7 @@ class yinyingtong_plugin
 		}elseif($order['typename']=='wxpay'){
 			if(in_array('3',$channel['apptype']) && checkwechat()){
 				return ['type'=>'jump','url'=>'/pay/wxjspay/'.TRADE_NO.'/?d=1'];
-			}elseif((in_array('2',$channel['apptype']) || in_array('3',$channel['apptype'])) && checkmobile()){
+			}elseif((in_array('2',$channel['apptype']) || in_array('3',$channel['apptype']) && $channel['appwxa']>0) && checkmobile()){
 				return ['type'=>'jump','url'=>'/pay/wxwappay/'.TRADE_NO.'/'];
 			}else{
 				return ['type'=>'jump','url'=>'/pay/wxpay/'.TRADE_NO.'/'];
@@ -97,7 +97,7 @@ class yinyingtong_plugin
 		}elseif($order['typename']=='wxpay'){
 			if(in_array('3',$channel['apptype']) && $mdevice=='wechat'){
 				return ['type'=>'jump','url'=>'/pay/wxjspay/'.TRADE_NO.'/?d=1'];
-			}elseif((in_array('2',$channel['apptype']) || in_array('3',$channel['apptype'])) && $device=='mobile'){
+			}elseif((in_array('2',$channel['apptype']) || in_array('3',$channel['apptype']) && $channel['appwxa']>0) && $device=='mobile'){
 				return self::wxwappay();
 			}else{
 				return self::wxpay();
@@ -107,75 +107,52 @@ class yinyingtong_plugin
 		}
 	}
 
-	//预下单+支付
-	static private function addOrder($pay_type, $channel_code, $interface_type, $sub_openid = null, $sub_appid = null){
+	//支付预下单
+	static private function prepay($pay_type, $bank_service_type = null){
 		global $siteurl, $channel, $order, $ordername, $conf, $clientip;
 
 		require_once(PAY_ROOT.'inc/PayClient.php');
 
 		$client = new PayClient($channel['appid'], $channel['appkey']);
 
-		$user_id = substr(md5($clientip), 0, 10);
 		$params = [
 			'merchant_number' => $channel['appmchid'],
 			'order_number' => TRADE_NO,
-			'scene' => '14',
-			'good_desc' => $ordername,
-			'total_amount' => $order['realmoney'],
+			'amount' => $order['realmoney'],
+			'pay_type' => $pay_type,
 			'currency' => 'CNY',
-			'user_id' => $user_id,
-			'notify_url' => $conf['localurl'].'pay/notify/'.TRADE_NO.'/',
-			'return_url' => $siteurl.'pay/return/'.TRADE_NO.'/',
+			'order_title' => $ordername,
+			'channel_code' => $pay_type,
+			'async_notification_addr' => $conf['localurl'].'pay/notify/'.TRADE_NO.'/',
+			'notify_key_mode' => '03',
+			'ref_no' => $channel['trade_platform_no'],
 		];
+		if($bank_service_type) $params['bank_service_type'] = $bank_service_type;
 		if($order['profits']>0){
-			$params['efor_flag'] = '1';
-			$params['trade_platform_no'] = $channel['trade_platform_no'];
+			$params['profit_sharing'] = '1';
 		}
 		if(!empty($channel['channel_merch_no'])){
-			$params['channel_merch_info'] = [['pay_type' => $pay_type, 'channel_merch_no'=>$channel['channel_merch_no']]];
-		}
-
-		$pay_data = [
-			'pay_type' => $pay_type,
-			'channel_code' => $channel_code,
-			'pay_amount' => $order['realmoney'],
-			'discount_amount' => '0',
-			'interface_type' => $interface_type,
-		];
-		if($sub_openid) $pay_data['biz_id'] = $sub_openid;
-		if($sub_appid) $pay_data['sub_appid'] = $sub_appid;
-		if($interface_type == '07'){
-			$pay_data += [
-				'term_type' => 'Wap',
-				'app_name' => $conf['sitename'],
-				'app_url' => $siteurl,
-			];
-		}
-		$params2 = [
-			'merchant_number' => $channel['appmchid'],
-			'order_id' => '',
-			'order_number' => TRADE_NO,
-			'total_amount' => $order['realmoney'],
-			'receipt_amount' => $order['realmoney'],
-			'r_data' => [$pay_data],
-		];
-
-		return \lib\Payment::lockPayData(TRADE_NO, function() use($client, $params, $params2) {
-			try{
-				$result = $client->execute('gcash.trade.precreate', $params);
-				$order_id = $result['order_id'];
-			}catch(Exception $e){
-				throw new Exception('预下单失败，'.$e->getMessage());
+			if(strpos($channel['channel_merch_no'], ',')){
+				$merch_nos = explode(',', $channel['channel_merch_no']);
+				$channel['channel_merch_no'] = $merch_nos[array_rand($merch_nos)];
 			}
-			\lib\Payment::updateOrder(TRADE_NO, $order_id);
-			$params2['order_id'] = $order_id;
-			$result = $client->execute('gcash.trade.pay', $params2);
-			return $result;
+			$params['bank_mch_id'] = $channel['channel_merch_no'];
+		}
+
+		return \lib\Payment::lockPayData(TRADE_NO, function() use($client, $params) {
+			$result = $client->execute('gepos.pre.pay', $params);
+			if($result['op_ret_code'] == '000'){
+				$order_id = $result['order_id'];
+				\lib\Payment::updateOrder(TRADE_NO, $order_id);
+				return $result;
+			}else{
+				throw new Exception('['.$result['op_ret_subcode'].']'.$result['op_err_msg']);
+			}
 		});
 	}
 
-	//AT支付接口
-	static private function qrcodePay($pay_type, $interface_type, $sub_openid = null, $sub_appid = null){
+	//公众号小程序支付
+	static private function jsapipay($pay_type, $sub_openid = null, $sub_appid = null, $is_mini = false){
 		global $siteurl, $channel, $order, $ordername, $conf, $clientip;
 
 		require_once(PAY_ROOT.'inc/PayClient.php');
@@ -185,29 +162,40 @@ class yinyingtong_plugin
 		$params = [
 			'merchant_number' => $channel['appmchid'],
 			'order_number' => TRADE_NO,
-			'good_desc' => $ordername,
-			'total_amount' => $order['realmoney'],
+			'amount' => $order['realmoney'],
 			'pay_type' => $pay_type,
-			'interface_type' => $interface_type,
-			'client_ip' => $clientip,
-			'notify_url' => $conf['localurl'].'pay/notify/'.TRADE_NO.'/',
-			'return_url' => $siteurl.'pay/return/'.TRADE_NO.'/',
+			'currency' => 'CNY',
+			'order_title' => $ordername,
+			'channel_code' => $pay_type,
+			'async_notification_addr' => $conf['localurl'].'pay/notify/'.TRADE_NO.'/',
+			'notify_key_mode' => '03',
+			'ref_no' => $channel['trade_platform_no'],
 		];
-		if($sub_openid) $params['biz_id'] = $sub_openid;
+		if($sub_openid) $params['open_id'] = $sub_openid;
 		if($sub_appid) $params['sub_appid'] = $sub_appid;
 		if($order['profits']>0){
-			$params['efor_flag'] = '1';
-			$params['trade_platform_no'] = $channel['trade_platform_no'];
+			$params['profit_sharing'] = '1';
 		}
-		return \lib\Payment::lockPayData(TRADE_NO, function() use($client, $params) {
-			$result = $client->execute('gcash.trade.qrcode.pay', $params);
-			\lib\Payment::updateOrder(TRADE_NO, $result['order_id']);
-			return $result['pay_data'];
+		if(!empty($channel['channel_merch_no'])){
+			if(strpos($channel['channel_merch_no'], ',')){
+				$merch_nos = explode(',', $channel['channel_merch_no']);
+				$channel['channel_merch_no'] = $merch_nos[array_rand($merch_nos)];
+			}
+			$params['bank_mch_id'] = $channel['channel_merch_no'];
+		}
+		return \lib\Payment::lockPayData(TRADE_NO, function() use($client, $params, $is_mini) {
+			$result = $client->execute($is_mini ? 'gepos.mini.program.pay' : 'gepos.public.number.order', $params);
+			if($result['op_ret_code'] == '000'){
+				\lib\Payment::updateOrder(TRADE_NO, $result['order_id']);
+				return $result['trans_data'];
+			}else{
+				throw new Exception('['.$result['op_ret_subcode'].']'.$result['op_err_msg']);
+			}
 		});
 	}
 
 	//预下单
-	static private function prepay($pay_type, $user_id){
+	static private function precreate($pay_type, $user_id){
 		global $siteurl, $channel, $order, $ordername, $conf, $clientip;
 
 		require_once(PAY_ROOT.'inc/PayClient.php');
@@ -241,12 +229,12 @@ class yinyingtong_plugin
 			$code_url = $siteurl.'pay/alipayjs/'.TRADE_NO.'/';
 		}else{
 			try{
-				$result = self::addOrder('01', 'mfbzfb', '02');
-				$bank_order_id = $result['bank_order_id'];
+				$result = self::prepay('01');
+				$bank_order_id = $result['order_id'];
 			}catch(Exception $ex){
 				return ['type'=>'error','msg'=>'支付宝下单失败！'.$ex->getMessage()];
 			}
-			$code_url = 'https://h5.gomepay.com/cashier-h5/index.html#/pages/preOrder/orderPay?orderId='.$bank_order_id.'&env=h5&showPayButton=0';
+			$code_url = 'https://h5.gomepay.com/cashier-h5/index.html#/pages/preOrder/orderPay?orderId='.$bank_order_id.'&showPayButton=0';
 		}
 
 		if(checkalipay() || $mdevice=='alipay'){
@@ -271,9 +259,8 @@ class yinyingtong_plugin
 			return ['type'=>'error','msg'=>'支付宝快捷登录获取uid失败，需将用户标识切换到uid模式'];
 		}
 
-		$channel = \lib\Channel::get($conf['alipay_web_login']);
 		try{
-			$paydata = self::qrcodePay('01', '02', $user_id, $channel['appid']);
+			$paydata = self::jsapipay('01', $user_id);
 			$trade_no = json_decode($paydata, true)['tradeNO'];
 		}catch(Exception $ex){
 			return ['type'=>'error','msg'=>'支付宝支付下单失败！'.$ex->getMessage()];
@@ -295,12 +282,12 @@ class yinyingtong_plugin
 		global $channel, $siteurl, $device, $mdevice;
 		if(in_array('1',$channel['apptype'])){
 			try{
-				$result = self::addOrder('02', 'mfbwx', '02');
-				$bank_order_id = $result['bank_order_id'];
+				$result = self::prepay('02', '16');
+				$bank_order_id = $result['order_id'];
 			}catch(Exception $ex){
 				return ['type'=>'error','msg'=>'微信支付下单失败！'.$ex->getMessage()];
 			}
-			$code_url = 'https://h5.gomepay.com/cashier-h5/index.html#/pages/preOrder/wxPublicOrder?orderId='.$bank_order_id.'&env=h5&showPayButton=0';
+			$code_url = 'https://h5.gomepay.com/cashier-h5/index.html#/pages/preOrder/wxPublicOrder?orderId='.$bank_order_id.'&showPayButton=0';
 		}elseif(in_array('2',$channel['apptype'])){
 			$code_url = $siteurl.'pay/wxwappay/'.TRADE_NO.'/';
 		}else{
@@ -325,12 +312,12 @@ class yinyingtong_plugin
 		global $siteurl,$channel, $mdevice;
 		if(in_array('2',$channel['apptype'])){
 			try{
-				$result = self::addOrder('02', 'mfbwx', '01');
-				$bank_order_id = $result['bank_order_id'];
+				$result = self::prepay('02', '22');
+				$bank_order_id = $result['order_id'];
 			}catch(Exception $ex){
 				return ['type'=>'error','msg'=>'微信支付下单失败！'.$ex->getMessage()];
 			}
-			$query = 'orderId='.$bank_order_id.'&env=h5';
+			$query = 'orderId='.$bank_order_id.'&showPayButton=0';
 			$code_url = 'weixin://dl/business/?appid=wx135edf7e3c7a1e7d&path=pages/wechat/preOrder/orderpay&query='.urlencode($query).'&env_version=release';
 			return ['type'=>'scheme','page'=>'wxpay_mini','url'=>$code_url];
 		}
@@ -363,8 +350,7 @@ class yinyingtong_plugin
 			$wxinfo = \lib\Channel::getWeixin($channel['appwxmp']);
 			if(!$wxinfo) return ['type'=>'error','msg'=>'支付通道绑定的微信公众号不存在'];
 			try{
-				$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-				$openid = $tools->GetOpenid();
+				$openid = wechat_oauth($wxinfo);
 			}catch(Exception $e){
 				return ['type'=>'error','msg'=>$e->getMessage()];
 			}
@@ -374,7 +360,7 @@ class yinyingtong_plugin
 
 		//②、统一下单
 		try{
-			$paydata = self::qrcodePay('02', '02', $openid, $wxinfo['appid']);
+			$paydata = self::jsapipay('02', $openid, $wxinfo['appid']);
 		}catch(Exception $ex){
 			return ['type'=>'error','msg'=>'微信支付下单失败！'.$ex->getMessage()];
 		}
@@ -399,8 +385,7 @@ class yinyingtong_plugin
 		$wxinfo = \lib\Channel::getWeixin($channel['appwxa']);
 		if(!$wxinfo)exit('{"code":-1,"msg":"支付通道绑定的微信小程序不存在"}');
 		try{
-			$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-			$openid = $tools->AppGetOpenid($code);
+			$openid = wechat_applet_oauth($code, $wxinfo);
 		}catch(Exception $e){
 			exit('{"code":-1,"msg":"'.$e->getMessage().'"}');
 		}
@@ -409,7 +394,7 @@ class yinyingtong_plugin
 
 		//②、统一下单
 		try{
-			$paydata = self::qrcodePay('02', '01', $openid, $wxinfo['appid']);
+			$paydata = self::jsapipay('02', $openid, $wxinfo['appid'], true);
 		}catch(Exception $ex){
 			exit('{"code":-1,"msg":"'.$ex->getMessage().'"}');
 		}
@@ -420,8 +405,8 @@ class yinyingtong_plugin
 	static public function wxapppay(){
 		global $method;
 		try{
-			$result = self::addOrder('02', 'mfbwx', '01');
-			$bank_order_id = $result['bank_order_id'];
+			$result = self::prepay('02', '22');
+			$bank_order_id = $result['order_id'];
 		}catch(Exception $ex){
 			return ['type'=>'error','msg'=>'微信支付下单失败！'.$ex->getMessage()];
 		}
@@ -439,7 +424,7 @@ class yinyingtong_plugin
 			setcookie('yyt_user_id', $user_id, time()+3600*24*365, '/');
 		}
 		try{
-			$result = self::prepay('10', $user_id);
+			$result = self::precreate('10', $user_id);
 		}catch(Exception $ex){
 			return ['type'=>'error','msg'=>'快捷支付下单失败！'.$ex->getMessage()];
 		}
@@ -461,6 +446,37 @@ class yinyingtong_plugin
 
 	//异步回调
 	static public function notify(){
+		global $channel, $order;
+
+		if(!isset($_POST['dstbdata']) || !isset($_POST['dstbdatasign'])) return ['type'=>'html','data'=>'no data'];
+
+		require_once(PAY_ROOT.'inc/PayClient.php');
+		$client = new PayClient($channel['appid'], $channel['appkey']);
+		$data = $client->notify($_POST['dstbdatasign'], $channel['productkey']);
+
+		if($data){
+			if($data['orderstatus'] == '00'){
+				$out_trade_no = $data['dsorderid'];
+				$api_trade_no = $data['orderid'];
+				$money = $data['amount'];
+				$bill_trade_no = $data['seq_no'];
+
+				$ext = unserialize($order['ext']);
+				$ext['transcode'] = $data['transcode'];
+
+				if ($out_trade_no == TRADE_NO) {
+					processNotify($order, $api_trade_no, $null, $bill_trade_no);
+					\lib\Payment::updateOrderExt(TRADE_NO, $ext);
+				}
+			}
+			return ['type'=>'html','data'=>'00'];
+		}else{
+			return ['type'=>'html','data'=>'01'];
+		}
+	}
+
+	//异步回调
+	static public function notify_old(){
 		global $channel, $order;
 
 		$json = file_get_contents('php://input');
@@ -497,27 +513,55 @@ class yinyingtong_plugin
 
 	//退款
 	static public function refund($order){
-		global $channel;
+		global $channel, $conf;
 		if(empty($order))exit();
 
 		require_once(PAY_ROOT.'inc/PayClient.php');
 		$client = new PayClient($channel['appid'], $channel['appkey']);
 
+		$ext = unserialize($order['ext']);
+
 		$params = [
+			'scene' => $ext['transcode'] == 'T61' ? '0615' : '0606',
 			'merchant_number' => $channel['appmchid'],
 			'order_number' => $order['refund_no'],
+			'old_order_number' => $order['trade_no'],
 			'old_order_id' => $order['api_trade_no'],
-			'refund_amount' => $order['refundmoney'],
-			'remark' => '订单退款',
+			'amount' => $order['refundmoney'],
+			'currency' => 'CNY',
+			'async_notification_addr' => $conf['localurl'] . 'pay/refundnotify/' . TRADE_NO . '/',
+			'memo' => '订单退款',
 		];
 
 		try{
-			$retData = $client->execute('gcash.trade.refund', $params);
-			$result = ['code'=>0, 'trade_no'=>$retData['order_id'], 'refund_fee'=>$retData['amount']];
+			$retData = $client->execute('gepos.refund', $params);
+			$result = ['code'=>0, 'trade_no'=>$retData['order_id'], 'refund_fee'=>$params['amount']];
 		}catch(Exception $e){
 			$result = ['code'=>-1, 'msg'=>$e->getMessage()];
 		}
 		return $result;
+	}
+
+	//退款回调
+	static public function refundnotify(){
+		global $channel, $order;
+
+		if(!isset($_POST['dstbdata']) || !isset($_POST['dstbdatasign'])) return ['type'=>'html','data'=>'no data'];
+
+		require_once(PAY_ROOT.'inc/PayClient.php');
+		$client = new PayClient($channel['appid'], $channel['appkey']);
+		$data = $client->notify($_POST['dstbdatasign'], $channel['productkey']);
+
+		if($data){
+			if($data['orderstatus'] == '00'){
+				$out_trade_no = $data['dsorderid'];
+				$api_trade_no = $data['orderid'];
+				$money = $data['amount'];
+			}
+			return ['type'=>'html','data'=>'00'];
+		}else{
+			return ['type'=>'html','data'=>'01'];
+		}
 	}
 
 	//进件通知
@@ -531,10 +575,34 @@ class yinyingtong_plugin
 		$verify_result = $client->verify($_POST['dstbdata'], $_POST['dstbdatasign']);
 
 		if($verify_result) {//验证成功
-			$arr = json_decode($_POST['dstbdata'], true);
+			$data = json_decode($_POST['dstbdata'], true);
 
 			$model = \lib\Applyments\CommUtil::getModel2($channel);
-			if($model) $model->notify($arr);
+			if($model) $model->notify($data);
+			
+			return ['type'=>'html','data'=>'00'];
+		}
+		else {
+			//验证失败
+			return ['type'=>'html','data'=>'01'];
+		}
+	}
+
+	//投诉通知
+	static public function complainnotify(){
+		global $channel;
+
+		require_once(PAY_ROOT."inc/M2Client.php");
+
+		//计算得出通知验证结果
+		$client = new M2Client($channel['appid'], $channel['appkey']);
+		$verify_result = $client->verify($_POST['dstbdata'], $_POST['dstbdatasign']);
+
+		if($verify_result) {//验证成功
+			$data = json_decode($_POST['dstbdata'], true);
+
+			$model = \lib\Complain\CommUtil::getModel($channel);
+			$model->refreshNewInfo($data['complaint_id'].'|'.$data['sub_mchid'], $data['action_type']);
 			
 			return ['type'=>'html','data'=>'00'];
 		}

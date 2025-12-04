@@ -68,6 +68,20 @@ class WechatAPI
         }
     }
 
+    public function getPhoneNumber($code)
+    {
+        $access_token = $this->getAccessToken();
+        $url = "https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=".$access_token;
+        $data = ['code'=>$code];
+        $output = get_curl($url, json_encode($data));
+        $res = json_decode($output, true);
+        if ($res && $res['errcode'] == 0) {
+            return $res['phone_info'];
+        }else{
+            throw new Exception('获取手机号码失败：'.$res['errmsg']);
+        }
+    }
+
     //发送微信公众号模板消息
     public function sendTemplateMessage($openid, $template_id, $jumpurl, $data){
         $access_token = $this->getAccessToken();

@@ -33,7 +33,11 @@ case 'transferList':
 		}
 	}
 	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		$sql.=" AND `{$_POST['column']}`='{$_POST['value']}'";
+		if($_POST['column']=='username'||$_POST['column']=='desc'){
+			$sql.=" AND `{$_POST['column']}` LIKE '%{$_POST['value']}%'";
+		}else{
+			$sql.=" AND `{$_POST['column']}`='{$_POST['value']}'";
+		}
 	}
 	$offset = intval($_POST['offset']);
 	$limit = intval($_POST['limit']);
@@ -82,7 +86,11 @@ case 'statistics':
 		}
 	}
 	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		$sql.=" AND `{$_POST['column']}`='{$_POST['value']}'";
+		if($_POST['column']=='username'||$_POST['column']=='desc'){
+			$sql.=" AND `{$_POST['column']}` LIKE '%{$_POST['value']}%'";
+		}else{
+			$sql.=" AND `{$_POST['column']}`='{$_POST['value']}'";
+		}
 	}
 	$totalMoney = $DB->getColumn("SELECT SUM(money) FROM pre_transfer WHERE{$sql} AND status<>2");
 	$resultCount = $DB->getRow("SELECT 
@@ -219,6 +227,23 @@ case 'batch_submit':
 			exit(json_encode(['code'=>-2, 'msg'=>$result['msg']]));
 		}
 	}
+break;
+
+case 'stat':
+	$startday = trim($_POST['startday']);
+	$endday = trim($_POST['endday']);
+	if(!$startday || !$endday)exit(json_encode(['code'=>0, 'msg'=>'no day']));
+	$sql="`addtime`>='{$startday} 00:00:00' AND `addtime`<='{$endday} 23:59:59' AND status=1";
+	if(isset($_POST['type']) && !empty($_POST['type'])) {
+		$type = trim($_POST['type']);
+		$sql.=" AND `type`='$type'";
+	}
+	$list = $DB->getAll("SELECT account,username,COUNT(*) AS order_count,SUM(money) AS money
+		FROM pre_transfer
+		WHERE {$sql}
+		GROUP BY account,username
+		ORDER BY money DESC");
+	exit(json_encode($list));
 break;
 default:
 	exit('{"code":-4,"msg":"No Act"}');

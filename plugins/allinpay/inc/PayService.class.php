@@ -7,13 +7,15 @@ class PayService
 {
 	private $sign_type = 'RSA';
 	private $version = '11';
+	private $orgid;
 	private $cusid;
 	private $appid;
 	private $platform_public_key;
 	private $merchant_private_key;
 
-	public function __construct($cusid, $appid, $platform_public_key, $merchant_private_key)
+	public function __construct($orgid, $cusid, $appid, $platform_public_key, $merchant_private_key)
 	{
+		$this->orgid = $orgid;
 		$this->cusid = $cusid;
 		$this->appid = $appid;
 		$this->platform_public_key = $platform_public_key;
@@ -23,6 +25,7 @@ class PayService
 	//发起API请求
 	public function submit($requrl, $params, $file = false){
 		$public_params = [
+			'orgid' => $this->orgid,
 			'appid' => $this->appid,
 			'cusid' => $this->cusid,
 			'version' => $this->version,
@@ -47,6 +50,7 @@ class PayService
 	//获取收银台参数
 	public function cashier($params){
 		$public_params = [
+			'orgid' => $this->orgid,
 			'cusid' => $this->cusid,
 			'appid' => $this->appid,
 			'version' => '12',
@@ -81,7 +85,7 @@ class PayService
 	//验签方法
 	public function verifySign($param){
 		if(empty($param['sign'])) return false;
-		return $this->rsaPubilcSign($this->getSignContent($param), $param['sign']);
+		return $this->rsaPubilcVerify($this->getSignContent($param), $param['sign']);
 	}
 
 	//商户私钥签名
@@ -100,7 +104,7 @@ class PayService
 	}
 
 	//平台公钥验签
-	private function rsaPubilcSign($data, $signature){
+	private function rsaPubilcVerify($data, $signature){
 		$pubKey = $this->platform_public_key;
         $res = "-----BEGIN PUBLIC KEY-----\n" .
             wordwrap($pubKey, 64, "\n", true) .
@@ -110,7 +114,7 @@ class PayService
 			throw new Exception('验签失败，平台公钥不正确');
 		}
 		$result = openssl_verify($data, base64_decode($signature), $pubkeyid);
-		return $result;
+		return $result === 1;
 	}
 
 }

@@ -2,7 +2,7 @@
 
 namespace lib\ProfitSharing;
 
-require_once PLUGIN_ROOT . 'adapay/inc/Build.class.php';
+require_once PLUGIN_ROOT . 'adapay/inc/AdapayClient.php';
 
 use Exception;
 
@@ -16,8 +16,7 @@ class Adapay implements IProfitSharing
 
     function __construct($channel){
 		$this->channel = $channel;
-        $pay_config = require(PLUGIN_ROOT.$channel['plugin'].'/inc/config.php');
-        $this->service = \AdaPay::config($pay_config);
+        $this->service = new \AdapayClient($channel['appkey'], $channel['appsecret'], $channel['appid']);
 	}
 
     //请求分账

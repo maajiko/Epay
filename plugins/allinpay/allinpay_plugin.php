@@ -29,6 +29,11 @@ class allinpay_plugin
 				'type' => 'textarea',
 				'note' => '',
 			],
+			'orgid' => [
+				'name' => '代理商商户号',
+				'type' => 'input',
+				'note' => '仅代理商需要填写',
+			],
 		],
 		'select' => null,
 		'select_alipay' => [
@@ -138,7 +143,7 @@ class allinpay_plugin
 			}
 		}
 
-		$client = new PayService($channel['appmchid'],$channel['appid'],$channel['appkey'],$channel['appsecret']);
+		$client = new PayService($channel['orgid'],$channel['appmchid'],$channel['appid'],$channel['appkey'],$channel['appsecret']);
 		$result = $client->submit($apiurl, $params);
 		if($result['trxstatus'] == '0000') {
 			return $result['payinfo'];
@@ -176,7 +181,7 @@ class allinpay_plugin
 			}
 		}
 
-		$client = new PayService($channel['appmchid'],$channel['appid'],$channel['appkey'],$channel['appsecret']);
+		$client = new PayService($channel['orgid'],$channel['appmchid'],$channel['appid'],$channel['appkey'],$channel['appsecret']);
 		$data = $client->cashier($params);
 		
 		$html_text = '<form action="'.$apiurl.'" method="post" id="dopay">';
@@ -214,7 +219,7 @@ class allinpay_plugin
 			}
 		}
 
-		$client = new PayService($channel['appmchid'],$channel['appid'],$channel['appkey'],$channel['appsecret']);
+		$client = new PayService($channel['orgid'],$channel['appmchid'],$channel['appid'],$channel['appkey'],$channel['appsecret']);
 		$data = $client->cashier($params);
 		
 		return $data;
@@ -336,8 +341,7 @@ class allinpay_plugin
 			$wxinfo = \lib\Channel::getWeixin($channel['appwxmp']);
 			if(!$wxinfo) return ['type'=>'error','msg'=>'支付通道绑定的微信公众号不存在'];
 			try{
-				$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-				$openid = $tools->GetOpenid();
+				$openid = wechat_oauth($wxinfo);
 			}catch(Exception $e){
 				return ['type'=>'error','msg'=>$e->getMessage()];
 			}
@@ -373,8 +377,7 @@ class allinpay_plugin
 		$wxinfo = \lib\Channel::getWeixin($channel['appwxa']);
 		if(!$wxinfo)exit('{"code":-1,"msg":"支付通道绑定的微信小程序不存在"}');
 		try{
-			$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-			$openid = $tools->AppGetOpenid($code);
+			$openid = wechat_applet_oauth($code, $wxinfo);
 		}catch(Exception $e){
 			exit('{"code":-1,"msg":"'.$e->getMessage().'"}');
 		}
@@ -445,7 +448,7 @@ class allinpay_plugin
 			'identify' => get_unionpay_ua(),
 		];
 
-		$client = new PayService($channel['appmchid'],$channel['appid'],$channel['appkey'],$channel['appsecret']);
+		$client = new PayService($channel['orgid'],$channel['appmchid'],$channel['appid'],$channel['appkey'],$channel['appsecret']);
 		try{
 			$result = $client->submit($apiurl, $params);
 			return ['code'=>0, 'data'=>$result['acct']];
@@ -460,7 +463,7 @@ class allinpay_plugin
 
 		require_once(PAY_ROOT."inc/PayService.class.php");
 		
-		$client = new PayService($channel['appmchid'],$channel['appid'],$channel['appkey'],$channel['appsecret']);
+		$client = new PayService($channel['orgid'],$channel['appmchid'],$channel['appid'],$channel['appkey'],$channel['appsecret']);
 		$verify_result = $client->verifySign($_POST);
 
 		if($verify_result) {//验证成功
@@ -508,7 +511,7 @@ class allinpay_plugin
 		];
 		
 		try{
-			$client = new PayService($channel['appmchid'],$channel['appid'],$channel['appkey'],$channel['appsecret']);
+			$client = new PayService($channel['orgid'],$channel['appmchid'],$channel['appid'],$channel['appkey'],$channel['appsecret']);
 			$result = $client->submit($apiurl, $params);
 
 			return ['code'=>0, 'trade_no'=>$result['trxid'], 'refund_fee'=>$result['fee']];
@@ -524,7 +527,7 @@ class allinpay_plugin
 
 		require_once(PAY_ROOT."inc/PayService.class.php");
 		
-		$client = new PayService($channel['appmchid'],$channel['appid'],$channel['appkey'],$channel['appsecret']);
+		$client = new PayService($channel['orgid'],$channel['appmchid'],$channel['appid'],$channel['appkey'],$channel['appsecret']);
 		$verify_result = $client->verifySign($_POST);
 
 		if($verify_result) {//验证成功
@@ -542,6 +545,27 @@ class allinpay_plugin
 				$model = \lib\Complain\CommUtil::getModel($channel);
 				$model->refreshNewInfo($data['complaint_id']);
 			}
+			
+			return ['type'=>'html','data'=>'sccuess'];
+		}
+		else {
+			return ['type'=>'html','data'=>'fail'];
+		}
+	}
+
+	//进件通知
+	static public function applynotify(){
+		global $channel;
+
+		require_once(PAY_ROOT."inc/PayService.class.php");
+		
+		$client = new PayService($channel['orgid'],$channel['appmchid'],$channel['appid'],$channel['appkey'],$channel['appsecret']);
+		$verify_result = $client->verifySign($_POST);
+
+		if($verify_result) {//验证成功
+
+			$model = \lib\Applyments\CommUtil::getModel2($channel);
+			if($model) $model->notify($_POST);
 			
 			return ['type'=>'html','data'=>'sccuess'];
 		}

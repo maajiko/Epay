@@ -127,6 +127,7 @@ unset($rs);
 <script src="../assets/js/custom.js"></script>
 <script>
 var is_user_refund = '<?php echo $conf['user_refund']?>';
+var is_print = '<?php echo $conf['orderprint']==1&&$userrow['print_order']>0?'1':'0';?>';
 $(document).ready(function(){
 	updateToolbar();
 	const defaultPageSize = 20;
@@ -227,6 +228,9 @@ $(document).ready(function(){
 					var html = '<a href="./record.php?type=3&kw='+row.trade_no+'" class="btn btn-info btn-xs">明细</a>&nbsp;<a href="javascript:callnotify(\''+row.trade_no+'\')" class="btn btn-success btn-xs">补单</a>';
 					if(is_user_refund=='1' && (row.status=='1' || row.status=='3' || row.status=='2' && row.refundmoney > 0 && row.refundmoney < row.realmoney)){
 						html += '&nbsp;<a href="javascript:refund(\''+row.trade_no+'\')" class="btn btn-danger btn-xs">退款</a>';
+					}
+					if(is_print=='1'&&row.status=='1'){
+						html += '&nbsp;<a href="javascript:void(0);" onclick="printOrder(\''+row.trade_no+'\')" class="btn btn-warning btn-xs">打印</a>';
 					}
 					return html;
 				}
@@ -483,5 +487,28 @@ function exportOrder(){
 		return false;
 	}
 	window.location.href='./download.php?act=order&'+$.param(params);
+}
+function printOrder(trade_no){
+	layer.confirm('是否重新打印此订单小票？',{btn:['确定','取消'],title:'打印小票'}, function(){
+		var ii = layer.load(2, {shade:[0.1,'#fff']});
+		$.ajax({
+			type : 'POST',
+			url : 'ajax2.php?act=printOrder',
+			data : {trade_no:trade_no},
+			dataType : 'json',
+			success : function(data) {
+				layer.close(ii);
+				if(data.code == 0){
+					layer.alert('打印指令已发送到打印机', {icon:1}, function(){ layer.closeAll(); });
+				}else{
+					layer.alert(data.msg, {icon:7});
+				}
+			},
+			error:function(data){
+				layer.close(ii);
+				layer.msg('服务器错误');
+			}
+		});
+	});
 }
 </script>

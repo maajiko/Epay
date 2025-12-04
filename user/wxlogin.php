@@ -70,8 +70,7 @@ $wxinfo = \lib\Channel::getWeixin($conf['login_wx']);
 if(!$wxinfo)sysmsg("当前微信公众号不存在");
 
 try{
-	$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-	$openId = $tools->GetOpenid();
+	$openId = wechat_oauth($wxinfo);
 }catch(Exception $e){
 	sysmsg($e->getMessage());
 }

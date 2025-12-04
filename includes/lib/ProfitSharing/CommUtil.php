@@ -6,7 +6,7 @@ use Exception;
 
 class CommUtil
 {
-    public static $plugins = ['alipay','alipaysl','alipayd','wxpayn','wxpaynp','yeepay','yseqt','chinaums','dinpay','adapay','duolabao','allinpay','huifu','haipay','heepay','kunpeng','kuaiqian','kuaiqianbank','yinyingtong','entpay'];
+    public static $plugins = ['alipay','alipaysl','alipayd','wxpayn','wxpaynp','yeepay','yseqt','chinaums','dinpay','adapay','duolabao','allinpay','huifu','haipay','heepay','kunpeng','kuaiqian','kuaiqianbank','yinyingtong','entpay','shengpay'];
     public static $no_order_plugins = ['chinaums','dinpay','duolabao','allinpay','huifu','haipay'];
 
     /**

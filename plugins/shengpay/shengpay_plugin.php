@@ -7,6 +7,7 @@ class shengpay_plugin
 		'author'      => '盛付通', //支付插件作者
 		'link'        => 'https://www.shengpay.com/', //支付插件作者链接
 		'types'       => ['alipay','wxpay','bank'], //支付插件支持的支付方式，可选的有alipay,qqpay,wxpay,bank
+		'transtypes'  => ['bank'], //支付插件支持的转账方式，可选的有alipay,qqpay,wxpay,bank
 		'inputs' => [ //支付插件要求传入的参数以及参数显示名称，可选的有appid,appkey,appsecret,appurl,appmchid
 			'appid' => [
 				'name' => '商户号',
@@ -32,6 +33,11 @@ class shengpay_plugin
 				'name' => '子商户号',
 				'type' => 'input',
 				'note' => '非代理商户可留空',
+			],
+			'aeskey' => [
+				'name' => 'AES加密密钥',
+				'type' => 'input',
+				'note' => '用于投诉事件回调解密',
 			],
 		],
 		'select_alipay' => [
@@ -125,6 +131,7 @@ class shengpay_plugin
 			'clientIp'  => $clientip,
 		];
 		if(!empty($channel['appmchid'])) $param['subMchId'] = $channel['appmchid'];
+		if($order['profits'] > 0) $param['isNeedShare'] = 'TRUE';
 		
 		return \lib\Payment::lockPayData(TRADE_NO, function() use($client, $path, $param) {
 			$result = $client->execute($path, $param);
@@ -152,6 +159,7 @@ class shengpay_plugin
 			'clientIp'  => $clientip,
 		];
 		if(!empty($channel['appmchid'])) $param['subMchId'] = $channel['appmchid'];
+		if($order['profits'] > 0) $param['isNeedShare'] = 'TRUE';
 		
 		return \lib\Payment::lockPayData(TRADE_NO, function() use($client, $param) {
 			$result = $client->execute('/pay/preUnifieAppletdorder', $param);
@@ -268,8 +276,7 @@ class shengpay_plugin
 			$wxinfo = \lib\Channel::getWeixin($channel['appwxmp']);
 			if(!$wxinfo) return ['type'=>'error','msg'=>'支付通道绑定的微信公众号不存在'];
 			try{
-				$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-				$openid = $tools->GetOpenid();
+				$openid = wechat_oauth($wxinfo);
 			}catch(Exception $e){
 				return ['type'=>'error','msg'=>$e->getMessage()];
 			}
@@ -305,8 +312,7 @@ class shengpay_plugin
 		$wxinfo = \lib\Channel::getWeixin($channel['appwxa']);
 		if(!$wxinfo)exit('{"code":-1,"msg":"支付通道绑定的微信小程序不存在"}');
 		try{
-			$tools = new \WeChatPay\JsApiTool($wxinfo['appid'], $wxinfo['appsecret']);
-			$openid = $tools->AppGetOpenid($code);
+			$openid = wechat_applet_oauth($code, $wxinfo);
 		}catch(Exception $e){
 			exit('{"code":-1,"msg":"'.$e->getMessage().'"}');
 		}
@@ -453,6 +459,88 @@ class shengpay_plugin
 		}
 	}
 
+	//转账
+	static public function transfer($channel, $bizParam){
+		global $conf, $clientip;
+		if(empty($channel) || empty($bizParam))exit();
+
+		require_once(PLUGIN_ROOT.'shengpay/inc/ShengPayClient.php');
+		$client = new ShengPayClient($channel['appid'], $channel['appkey'], $channel['appsecret']);
+
+		$params = [
+			'mchOrderNo' => $bizParam['out_biz_no'],
+			'transAmount' => intval(round($bizParam['money']*100)),
+			'payeeAccount' => $bizParam['payee_account'],
+			'accountType' => 'C',
+			'payeeName' => $bizParam['payee_real_name'],
+			'remark' => $bizParam['transfer_desc'],
+			'notifyUrl' => $conf['localurl'].'pay/transfernotify/'.$channel['id'].'/',
+		];
+
+		try{
+			$result = $client->execute('/merchant/fund/transfer', $params);
+			return ['code'=>0, 'status'=>0, 'orderid'=>$result['transNo'], 'paydate'=>date('Y-m-d H:i:s')];
+		}catch(Exception $ex){
+			return ['code'=>-1, 'msg'=>$ex->getMessage()];
+		}
+	}
+
+	//转账查询
+	static public function transfer_query($channel, $bizParam){
+		if(empty($channel) || empty($bizParam))exit();
+
+		require_once(PLUGIN_ROOT.'shengpay/inc/ShengPayClient.php');
+		$client = new ShengPayClient($channel['appid'], $channel['appkey'], $channel['appsecret']);
+
+		$params = [
+			'transNo' => $bizParam['orderid'],
+		];
+		try{
+			$result = $client->execute('/merchant/fund/query', $params);
+			if($result['transStatus'] == 'SUCCESS'){
+				$status = 1;
+			}elseif($result['transStatus'] == 'FAIL'){
+				$status = 2;
+				$errmsg = $result['transStatusDes'];
+			}else{
+				$status = 0;
+			}
+			return ['code'=>0, 'status'=>$status, 'errmsg'=>$errmsg];
+		}catch(Exception $ex){
+			return ['code'=>-1, 'msg'=>$ex->getMessage()];
+		}
+	}
+
+	//付款异步回调
+	static public function transfernotify(){
+		global $channel, $order;
+
+		$json = file_get_contents('php://input');
+		$data = json_decode($json,true);
+		if(!$data) return ['type'=>'html','data'=>'no data'];
+
+		require_once PAY_ROOT."inc/ShengPayClient.php";
+
+		$client = new ShengPayClient($channel['appid'], $channel['appkey'], $channel['appsecret']);
+		$verify_result = $client->verifySign($data);
+
+		if($verify_result){
+			if($data['transStatus'] == 'SUCCESS'){
+				$status = 1;
+			}elseif($data['transStatus'] == 'FAIL'){
+				$status = 2;
+				$errmsg = $data['transStatusDes'];
+			}else{
+				$status = 0;
+			}
+			processTransfer($data['mchOrderNo'], $status, $errmsg);
+			return ['type'=>'html','data'=>'SUCCESS'];
+		}
+		else {
+			return ['type'=>'html','data'=>'SIGN FAIL'];
+		}
+	}
+
 	//微信参数配置
 	static public function wxconfig(){
 		global $siteurl,$channel,$islogin;
@@ -534,6 +622,62 @@ class shengpay_plugin
 		if($verify_result){
 			$model = \lib\Applyments\CommUtil::getModel2($channel);
 			if($model) $model->settlenotify($data);
+			return ['type'=>'html','data'=>'SUCCESS'];
+		}
+		else {
+			return ['type'=>'html','data'=>'SIGN FAIL'];
+		}
+	}
+
+	//分账异步回调
+	static public function sharingnotify(){
+		global $channel, $order;
+
+		$json = file_get_contents('php://input');
+		$data = json_decode($json,true);
+		if(!$data) return ['type'=>'html','data'=>'no data'];
+
+		require_once PAY_ROOT."inc/ShengPayClient.php";
+
+		$client = new ShengPayClient($channel['appid'], $channel['appkey'], $channel['appsecret']);
+		$verify_result = $client->verifySign($data);
+
+		if($verify_result){
+			if($data['status'] == 'FINISHED'){
+				$receivers = json_decode($data['receivers'], true);
+				$info = $receivers[0];
+				if($info['sharingStatus'] == 'SUCCESS'){
+					processProfitSharing($data['mchSharingNo'], 2);
+                } elseif($info['sharingStatus'] == 'FAIL') {
+					processProfitSharing($data['mchSharingNo'], 3, $info['failReason']);
+                }
+			}
+			return ['type'=>'html','data'=>'SUCCESS'];
+		}
+		else {
+			return ['type'=>'html','data'=>'SIGN FAIL'];
+		}
+	}
+
+	//投诉回调
+	static public function complainnotify(){
+		global $channel, $order;
+
+		$json = file_get_contents('php://input');
+		$data = json_decode($json,true);
+		if(!$data || !isset($data['resource'])) return ['type'=>'html','data'=>'no data'];
+
+		require_once PAY_ROOT."inc/ShengPayClient.php";
+
+		$client = new ShengPayClient($channel['appid'], $channel['appkey'], $channel['appsecret']);
+		$res = $data['resource'];
+		$data = $client->decrpytEvent($res['ciphertext'], $res['nonce'], $res['associated_data'], $channel['aeskey']);
+
+		if($data){
+			$data = json_decode($data, true);
+			$channel['type'] = $data['tradeType'] == '支付宝' ? 1 : 2;
+			$model = \lib\Complain\CommUtil::getModel($channel);
+			$model->refreshNewInfo($data['complaintId'], $data);
 			return ['type'=>'html','data'=>'SUCCESS'];
 		}
 		else {

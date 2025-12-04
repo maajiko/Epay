@@ -202,6 +202,14 @@ echo '<tr><td><b>'.$value.'</b><input type="hidden" name="info['.$key.'][type]" 
 			<div class="col-sm-4"><input type="text" name="config[pay_payaddmin]" value="" class="form-control" placeholder="最小增加金额，负数为减少"/></div>
 			<div class="col-sm-4"><input type="text" name="config[pay_payaddmax]" value="" class="form-control" placeholder="最大增加金额，负数为减少"/></div>
 		</div>
+		<div class="form-group">
+			<label class="col-sm-4 control-label">最大支付金额</label>
+			<div class="col-sm-8"><input type="text" name="config[pay_maxmoney]" value="" class="form-control" placeholder="留空则与系统设置一致"/></div>
+		</div>
+		<div class="form-group">
+			<label class="col-sm-4 control-label">日支付限额</label>
+			<div class="col-sm-8"><input type="text" name="config[pay_daymax]" value="" class="form-control" placeholder="留空则不限制"/></div>
+		</div>
 		<?php if(class_exists("\\lib\\Applyments\\CommUtil")){?><div class="form-group">
 			<label class="col-sm-4 control-label">免费进件</label>
 			<div class="col-sm-8">

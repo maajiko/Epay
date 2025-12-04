@@ -42,3 +42,20 @@ ADD COLUMN `index` int(11) NOT NULL DEFAULT 0;
 
 ALTER TABLE `pre_channel`
 ADD COLUMN `daymaxorder` int(10) DEFAULT 0;
+
+ALTER TABLE `pre_psorder`
+ADD COLUMN `retry` tinyint(1) NOT NULL DEFAULT '0';
+
+ALTER TABLE `pre_user`
+ADD COLUMN `wxa_uid` varchar(32) DEFAULT NULL;
+
+ALTER TABLE `pre_channel`
+ADD COLUMN `timestart` int(11) DEFAULT NULL,
+ADD COLUMN `timestop` int(11) DEFAULT NULL;
+
+ALTER TABLE `pre_user`
+ADD COLUMN `print_order` tinyint(1) NOT NULL DEFAULT '0',
+ADD COLUMN `print_config` varchar(300) DEFAULT NULL;
+
+ALTER TABLE `pre_order`
+ADD COLUMN `cert_info` varchar(300) DEFAULT NULL;

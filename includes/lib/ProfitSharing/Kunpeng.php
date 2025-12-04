@@ -43,7 +43,7 @@ class Kunpeng implements IProfitSharing
         ];
 
         try{
-            $result = $this->service->execute3('/mas/sharing/sharingOrder.do', $params);
+            $result = $this->service->execute3('/mas/sharing/sharingOrderSync.do', $params);
         }catch(Exception $e){
             return ['code'=>-1, 'msg'=>$e->getMessage()];
         }
@@ -59,7 +59,7 @@ class Kunpeng implements IProfitSharing
         ];
 
         try{
-            $result = $this->service->execute3('/mas/sharing/orderQuery.do', $params);
+            $result = $this->service->execute3('/mas/sharing/orderQuerySync.do', $params);
             $sharingInfos = json_decode($result['sharingInfos'], true);
             if(empty($sharingInfos)){
                 return ['code'=>-1, 'msg'=>'未查询到分账结果'];
@@ -68,12 +68,25 @@ class Kunpeng implements IProfitSharing
             if($info['resultcode'] == '0000'){
                 return ['code'=>0, 'status'=>1];
             } elseif($info['resultcode'] == '9997') {
+                global $DB;
+                $addtime = $DB->findColumn('psorder', 'addtime', ['trade_no'=>$trade_no]);
+                if($addtime && strtotime($addtime) < time() - 86400){
+                    return ['code'=>0, 'status'=>2, 'reason'=>'分账超时未处理'];
+                }
                 return ['code'=>0, 'status'=>0];
             } else {
                 return ['code'=>0, 'status'=>2, 'reason'=>$info['resultmsg'] ?? '分账结果查询失败'];
             }
         }catch(Exception $e){
-            return ['code'=>-1, 'msg'=>$e->getMessage()];
+            $errmsg = $e->getMessage();
+            if($errmsg == '交易处理中'){
+                global $DB;
+                $addtime = $DB->findColumn('psorder', 'addtime', ['trade_no'=>$trade_no]);
+                if($addtime && strtotime($addtime) < time() - 86400){
+                    return ['code'=>0, 'status'=>2, 'reason'=>'分账超时未处理'];
+                }
+            }
+            return ['code'=>-1, 'msg'=>$errmsg];
         }
     }
 

@@ -436,6 +436,10 @@ $(document).ready(function(){
 	  <div class="col-sm-9"><input type="text" name="profits_desc" value="<?php echo $conf['profits_desc']; ?>" class="form-control" placeholder="默认为空，仅用于支付宝和微信官方接口分账"/></div>
 	</div><br/>
 	<div class="form-group">
+	  <label class="col-sm-3 control-label">分账失败的24小时后重试</label>
+	  <div class="col-sm-9"><select class="form-control" name="profits_failretry" default="<?php echo $conf['profits_failretry']?>"><option value="0">否</option><option value="1">是</option></select></div>
+	</div><br/>
+	<div class="form-group">
 	  <div class="col-sm-offset-3 col-sm-9"><input type="submit" name="submit" value="修改" class="btn btn-primary form-control"/><br/>
 	 </div>
 	</div>
@@ -591,7 +595,7 @@ $(document).ready(function(){
 	</div><br/>
 	<div class="form-group">
 	  <label class="col-sm-3 control-label">投诉自动回复并处理</label>
-	  <div class="col-sm-9"><select class="form-control" name="complain_auto_reply" default="<?php echo $conf['complain_auto_reply']?>"><option value="0">否</option><option value="1">自动回复并处理</option><option value="2">只自动回复</option></select></div>
+	  <div class="col-sm-9"><select class="form-control" name="complain_auto_reply" default="<?php echo $conf['complain_auto_reply']?>"><option value="0">否</option><option value="1">自动回复并处理</option><option value="2">只自动回复</option><option value="3">只自动回复(仅微信)</option></select></div>
 	</div><br/>
 	<div class="form-group">
 	  <label class="col-sm-3 control-label">微信重复投诉后仍然自动回复并处理</label>
@@ -1250,6 +1254,7 @@ $("select[name='ocr_type']").change(function(){
 }elseif($mod=='oauth'){
 	$alipay_channel = $DB->getAll("SELECT * FROM pre_channel WHERE plugin='alipay' OR plugin='alipaysl' OR plugin='alipayd'");
 	$wxpay_channel = $DB->getAll("SELECT * FROM pre_weixin WHERE type=0");
+	$wxapplet_channel = $DB->getAll("SELECT * FROM pre_weixin WHERE type=1");
 ?>
 <div class="panel panel-primary">
 <div class="panel-heading"><h3 class="panel-title">快捷登录配置</h3></div>
@@ -1276,6 +1281,16 @@ $("select[name='ocr_type']").change(function(){
 	<div class="form-group">
 	  <label class="col-sm-3 control-label">微信快捷登录</label>
 	  <div class="col-sm-9"><select class="form-control" name="login_wx" default="<?php echo $conf['login_wx']?>"><option value="0">关闭</option><?php foreach($wxpay_channel as $channel){echo '<option value="'.$channel['id'].'">'.$channel['name'].'</option>';} ?><option value="-1">彩虹聚合登录</option></select><font color="green">请先<a href="./pay_weixin.php" target="_blank">添加一个微信公众号</a>。需要服务号，并配置网页授权域名：<?php echo $_SERVER['HTTP_HOST'];?></font></div>
+	</div><br/>
+	<div id="setform2" style="<?php echo $conf['login_wx']<=0?'display:none;':null; ?>">
+	<div class="form-group">
+	  <label class="col-sm-3 control-label">微信多域名回调系统URL</label>
+	  <div class="col-sm-9"><input type="text" name="wx_open_url" value="<?php echo $conf['wx_open_url']; ?>" class="form-control" placeholder="选填，以http://或https://开头，结尾不要有/"/><font color="green">选填，填写后将替换https://open.weixin.qq.com，<a href="https://github.com/netcccyun/wxredirect/releases" target="_blank" rel="noreferrer">微信多域名回调系统</a>用于解决微信公众号网页授权域名数量限制的问题</font></div>
+	</div><br/>
+	</div>
+	<div class="form-group">
+	  <label class="col-sm-3 control-label">微信小程序快捷登录</label>
+	  <div class="col-sm-9"><select class="form-control" name="login_wxa" default="<?php echo $conf['login_wxa']?>"><option value="0">关闭</option><?php foreach($wxapplet_channel as $channel){echo '<option value="'.$channel['id'].'">'.$channel['name'].'</option>';} ?></select><font color="green">请先<a href="./pay_weixin.php" target="_blank">添加一个微信小程序</a>。用于微信小程序客户端快捷登录</font></div>
 	</div><br/>
 	<div class="form-group">
 	  <div class="col-sm-offset-3 col-sm-9"><input type="submit" name="submit" value="修改" class="btn btn-primary form-control"/><br/>
@@ -1317,6 +1332,13 @@ $("select[name='login_qq']").change(function(){
 		$("#setform1").hide();
 	}else{
 		$("#setform1").hide();
+	}
+});
+$("select[name='login_wx']").change(function(){
+	if($(this).val() > 0){
+		$("#setform2").show();
+	}else{
+		$("#setform2").hide();
 	}
 });
 </script>
@@ -1674,7 +1696,42 @@ if($errmsg3){
 </div>
 <div class="panel-footer">
 <span class="glyphicon glyphicon-info-sign"></span>
-云喇叭对接<a href="https://m.qyypay.cn/" target="_blank" rel="noreferrer">启易付</a>硬件设备，支持聚合收款语音播报与付款码支付。
+云喇叭对接<a href="https://m.qyypay.cn/" target="_blank" rel="noreferrer">启易付</a>硬件设备，支持聚合收款码语音播报。
+</div>
+</div>
+<?php
+$errmsg4 = $CACHE->read('printerrmsg');
+if($errmsg4){
+	$arr = unserialize($errmsg4);
+	$errmsg4 = $arr['time'].' - '.$arr['errmsg'];
+}
+?>
+<div class="panel panel-primary">
+<div class="panel-heading"><h3 class="panel-title">订单小票打印</h3></div>
+<div class="panel-body">
+<?php if($errmsg4){?><div class="alert alert-warning">上一次报错信息：<?php echo $errmsg4;?></div><?php }?>
+  <form onsubmit="return saveSetting(this)" method="post" class="form-horizontal" role="form">
+	<div class="form-group">
+	  <label class="col-sm-3 control-label">订单小票打印开关</label>
+	  <div class="col-sm-9"><select class="form-control" name="orderprint" default="<?php echo $conf['orderprint']?>"><option value="0">关闭</option><option value="1">开启</option></select></div>
+	</div><br/>
+	<div class="form-group">
+	  <label class="col-sm-3 control-label">APPID</label>
+	  <div class="col-sm-9"><input type="text" name="print_appid" value="<?php echo $conf['print_appid']; ?>" class="form-control"/></div>
+	</div><br/>
+	<div class="form-group">
+	  <label class="col-sm-3 control-label">APPSECRET</label>
+	  <div class="col-sm-9"><input type="text" name="print_appsecret" value="<?php echo $conf['print_appsecret']; ?>" class="form-control"/></div>
+	</div><br/>
+  	<div class="form-group">
+	  <div class="col-sm-offset-3 col-sm-9"><input type="submit" name="submit" value="修改" class="btn btn-primary form-control"/><br/>
+	 </div><br/>
+	</div>
+  </form>
+</div>
+<div class="panel-footer">
+<span class="glyphicon glyphicon-info-sign"></span>
+对接<a href="https://m.qyypay.cn/" target="_blank" rel="noreferrer">启易付</a>打印机，支持订单支付成功后自动打印小票功能，需同时在用户中心填写打印机序列号并开启打印功能。
 </div>
 </div>
 <?php
