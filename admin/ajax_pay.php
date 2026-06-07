@@ -69,7 +69,7 @@ case 'savePayType':
 		$name=trim($_POST['name']);
 		$showname=trim($_POST['showname']);
 		$device=intval($_POST['device']);
-		if(!preg_match('/^[a-zA-Z0-9]+$/',$name)){
+		if(!preg_match('/^[a-zA-Z0-9_.-]+$/',$name)){
 			exit('{"code":-1,"msg":"调用值不符合规则"}');
 		}
 		$row=$DB->getRow("select * from pre_type where name='$name' and device='$device' limit 1");
@@ -83,7 +83,7 @@ case 'savePayType':
 		$name=trim($_POST['name']);
 		$showname=trim($_POST['showname']);
 		$device=intval($_POST['device']);
-		if(!preg_match('/^[a-zA-Z0-9]+$/',$name)){
+		if(!preg_match('/^[a-zA-Z0-9_.-]+$/',$name)){
 			exit('{"code":-1,"msg":"调用值不符合规则"}');
 		}
 		$row=$DB->getRow("select * from pre_type where name='$name' and device='$device' and id<>$id limit 1");
