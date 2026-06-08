@@ -5,7 +5,7 @@ create table `pre_config` (
 PRIMARY KEY  (`k`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-INSERT INTO `pre_config` VALUES ('version', '2054');
+INSERT INTO `pre_config` VALUES ('version', '2055');
 INSERT INTO `pre_config` VALUES ('admin_user', 'admin');
 INSERT INTO `pre_config` VALUES ('admin_pwd', '123456');
 INSERT INTO `pre_config` VALUES ('admin_paypwd', '123456');
@@ -109,8 +109,8 @@ CREATE TABLE `pre_plugin` (
   `showname` varchar(60) DEFAULT NULL,
   `author` varchar(60) DEFAULT NULL,
   `link` varchar(255) DEFAULT NULL,
-  `types` varchar(50) DEFAULT NULL,
-  `transtypes` varchar(50) DEFAULT NULL,
+  `types` varchar(500) DEFAULT NULL,
+  `transtypes` varchar(500) DEFAULT NULL,
  PRIMARY KEY (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 

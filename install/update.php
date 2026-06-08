@@ -1,6 +1,6 @@
 <?php
 error_reporting(0);
-define('DB_VERSION', '2054');
+define('DB_VERSION', '2055');
 require '../config.php';
 
 @header('Content-Type: text/html; charset=UTF-8');
@@ -26,10 +26,16 @@ if($version==DB_VERSION){
 }elseif($version<2044){
 	$sqls = file_get_contents('update2.sql');
 	$sqls .= file_get_contents('update3.sql');
+	$sqls .= file_get_contents('update4.sql');
+	$sqls=explode(';', $sqls);
+	$sqls[]="UPDATE `pre_config` SET `v` = '".DB_VERSION."' where `k` = 'version'";
+}elseif($version<2054){
+	$sqls = file_get_contents('update3.sql');
+	$sqls .= file_get_contents('update4.sql');
 	$sqls=explode(';', $sqls);
 	$sqls[]="UPDATE `pre_config` SET `v` = '".DB_VERSION."' where `k` = 'version'";
 }elseif($version<DB_VERSION){
-	$sqls = file_get_contents('update3.sql');
+	$sqls = file_get_contents('update4.sql');
 	$sqls=explode(';', $sqls);
 	$sqls[]="UPDATE `pre_config` SET `v` = '".DB_VERSION."' where `k` = 'version'";
 }else{

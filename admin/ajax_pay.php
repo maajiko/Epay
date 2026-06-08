@@ -7,6 +7,28 @@ if(!checkRefererHost())exit('{"code":403}');
 
 @header('Content-Type: application/json; charset=UTF-8');
 
+function checkPluginSupportType($typeid, $plugin){
+	global $DB;
+	if($typeid <= 0)
+		return ['code'=>-1, 'msg'=>'当前支付方式不存在！'];
+	if(empty($plugin))
+		return ['code'=>-1, 'msg'=>'请选择支付插件！'];
+
+	$type = $DB->getColumn("SELECT name FROM pre_type WHERE id=:id", [':id'=>$typeid]);
+	if(!$type)
+		return ['code'=>-1, 'msg'=>'当前支付方式不存在！'];
+
+	$row = $DB->getRow("SELECT types FROM pre_plugin WHERE name=:name LIMIT 1", [':name'=>$plugin]);
+	if(!$row)
+		return ['code'=>-1, 'msg'=>'当前支付插件不存在！'];
+
+	$types = array_filter(array_map('trim', explode(',', $row['types'] ?? '')));
+	if(!in_array($type, $types, true))
+		return ['code'=>-1, 'msg'=>'当前插件不支持该支付方式，请检查支付方式调用值'];
+
+	return ['code'=>0, 'msg'=>'succ'];
+}
+
 switch($act){
 case 'channelList':
 	$sql=" 1=1";
@@ -105,10 +127,10 @@ case 'getPlugin':
 break;
 case 'getPlugins':
 	$typeid = intval($_GET['typeid']);
-	$type=$DB->getColumn("SELECT name FROM pre_type WHERE id='$typeid'");
+	$type=$DB->getColumn("SELECT name FROM pre_type WHERE id=:id", [':id'=>$typeid]);
 	if(!$type)
 		exit('{"code":-1,"msg":"当前支付方式不存在！"}');
-	$list=$DB->getAll("SELECT name,showname FROM pre_plugin WHERE types LIKE '%$type%' ORDER BY name ASC");
+	$list=$DB->getAll("SELECT name,showname FROM pre_plugin WHERE FIND_IN_SET(:type, types)>0 ORDER BY name ASC", [':type'=>$type]);
 	if($list){
 		$result = ['code'=>0,'msg'=>'succ','data'=>$list];
 		exit(json_encode($result));
@@ -221,6 +243,8 @@ case 'saveChannel':
 		$row=$DB->getRow("SELECT * FROM pre_channel WHERE name='$name' LIMIT 1");
 		if($row)
 			exit('{"code":-1,"msg":"支付通道名称重复"}');
+		$support = checkPluginSupportType($type, $plugin);
+		if($support['code'] != 0) exit(json_encode($support, JSON_UNESCAPED_UNICODE));
 		$data = ['name'=>$name, 'rate'=>$rate, 'costrate'=>$costrate, 'mode'=>$mode, 'type'=>$type, 'plugin'=>$plugin, 'daytop'=>$daytop, 'paymin'=>$paymin, 'paymax'=>$paymax, 'daymaxorder'=>$daymaxorder, 'timestart'=>$timestart, 'timestop'=>$timestop];
 		if($DB->insert('channel', $data))exit('{"code":0,"msg":"新增支付通道成功！"}');
 		else exit('{"code":-1,"msg":"新增支付通道失败['.$DB->error().']"}');
@@ -255,6 +279,8 @@ case 'saveChannel':
 		$nrow=$DB->getRow("SELECT * FROM pre_channel WHERE name='$name' LIMIT 1");
 		if($nrow)
 			exit('{"code":-1,"msg":"支付通道名称重复"}');
+		$support = checkPluginSupportType($type, $plugin);
+		if($support['code'] != 0) exit(json_encode($support, JSON_UNESCAPED_UNICODE));
 		$data = ['name'=>$name, 'rate'=>$rate, 'costrate'=>$costrate, 'mode'=>$mode, 'type'=>$type, 'plugin'=>$plugin, 'daytop'=>$daytop, 'paymin'=>$paymin, 'paymax'=>$paymax, 'daymaxorder'=>$daymaxorder, 'config'=>$row['config'], 'apptype'=>$row['apptype'], 'appwxmp'=>$row['appwxmp'], 'appwxa'=>$row['appwxa'], 'timestart'=>$timestart, 'timestop'=>$timestop];
 		if($DB->insert('channel', $data))exit('{"code":0,"msg":"复制支付通道成功！"}');
 		else exit('{"code":-1,"msg":"复制支付通道失败['.$DB->error().']"}');
@@ -289,6 +315,8 @@ case 'saveChannel':
 		$nrow=$DB->getRow("SELECT * FROM pre_channel WHERE name='$name' AND id<>$id LIMIT 1");
 		if($nrow)
 			exit('{"code":-1,"msg":"支付通道名称重复"}');
+		$support = checkPluginSupportType($type, $plugin);
+		if($support['code'] != 0) exit(json_encode($support, JSON_UNESCAPED_UNICODE));
 		$data = ['name'=>$name, 'rate'=>$rate, 'costrate'=>$costrate, 'mode'=>$mode, 'type'=>$type, 'plugin'=>$plugin, 'daytop'=>$daytop, 'paymin'=>$paymin, 'paymax'=>$paymax, 'daymaxorder'=>$daymaxorder, 'timestart'=>$timestart, 'timestop'=>$timestop];
 		if($DB->update('channel', $data, ['id'=>$id])!==false){
 			if($row['daystatus']==1 && ($daytop==0 || $daytop>$row['daytop'] || $daymaxorder==0)){
